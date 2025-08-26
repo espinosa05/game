@@ -1,0 +1,725 @@
+#include <core/os.h>
+#include <core/os_streams.h>
+
+#include <core/utils.h>
+#include <core/types.h>
+#include <core/memory.h>
+
+#define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
+
+/* static function declaration start */
+static char *GetErrnoStr(int errnoVal);
+static bool SupportedAspectRatio(OS_WindowCreateInfo *info);
+static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileInfo *info);
+static OS_StreamStatus OpenSocketStream(OS_Stream *stream, const OS_SocketInfo *info);
+static OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunction, usz errnoVal);
+/* static function declaration end */
+
+OS_WmStatus OS_WmInit(OS_WindowManager *wm)
+{
+    wm->xDisplay = XOpenDisplay(NULL);
+    wm->xScreen = DefaultScreen(wm->xDisplay);
+
+    return OS_WM_STATUS_SUCCESS;
+}
+
+OS_WmStatus OS_WmShutdown(OS_WindowManager *wm)
+{
+    XCloseDisplay(wm->xDisplay);
+
+    return OS_WM_STATUS_SUCCESS;
+}
+
+#define DEFAULT_BORDER_WIDTH        0
+#define DEFAULT_BORDER_COLOR        0
+#define DEFAULT_BACKGROUND_COLOR    0
+
+OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCreateInfo *info)
+{
+    if (!SupportedAspectRatio(info)) {
+        return OS_WM_STATUS_ASPECT_RATIO_NOT_SUPPORTED;
+    }
+
+    win->xWindow = XCreateSimpleWindow(wm->xDisplay,
+                                        DefaultRootWindow(wm->xDisplay),
+                                        (int)info->xPos,
+                                        (int)info->yPos,
+                                        (int)info->width,
+                                        (int)info->height,
+                                        DEFAULT_BORDER_WIDTH,
+                                        DEFAULT_BORDER_COLOR,
+                                        DEFAULT_BACKGROUND_COLOR);
+
+    XStoreName(wm->xDisplay, win->xWindow, info->initialTitle);
+    XUnmapWindow(wm->xDisplay, win->xWindow); /* start the window in the hidden state */
+    XFlush(wm->xDisplay); /* make sure it's submitted to the Server */
+
+    return OS_WM_STATUS_SUCCESS;
+}
+
+void OS_WmWindowShow(OS_WindowManager *wm, OS_Window *win)
+{
+    XMapWindow(wm->xDisplay, win->xWindow);
+    XFlush(wm->xDisplay);
+}
+
+
+void OS_WmWindowHide(OS_WindowManager *wm, OS_Window *win)
+{
+    XUnmapWindow(wm->xDisplay, win->xWindow);
+    XFlush(wm->xDisplay);
+}
+
+void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *title)
+{
+    XStoreName(wm->xDisplay, win->xWindow, title);
+    XFlush(wm->xDisplay);
+}
+
+OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win)
+{
+    XDestroyWindow(wm->xDisplay, win->xWindow);
+    XFlush(wm->xDisplay);
+
+    return OS_WM_STATUS_SUCCESS;
+}
+
+enum threadStatus { THREAD_FAILED = -1, THREAD_CREATED = 0, };
+OS_Thread worker = {0};
+OS_ThreadCreateInfo workerInfo = {
+    .function = RenderThread,
+    .arg = &arg,
+    .returnBuff = &ret,
+    .returnSize = sizeof(ret),
+};
+OS_ThreadSpawn(&worker, callBack, arg);
+OS_ThreadJoin(&worker, &ret);
+
+OS_ThreadStatus OS_ThreadSpawn(OS_Thread *thr, OS_ThreadFunction func, void *arg)
+{
+    struct clone_args cloneArgs = {0};
+    struct rlimit stackSize = {0};
+    void *stackBuffer = NULL;
+    OS_ThreadStatus ret = OS_THREAD_STATUS_FAILURE;
+
+    /* getrlimit does not return useful errors */
+    getrlimit(RLIMIT_STACK, &stackSize);
+    stackBuffer = mmap(NULL, stackSize.rlim_cur, PROT_READ | PROT_WRITE,
+                       MAP_GROWSDOWN | MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+
+    __TMP_ASSERT(stackBuffer != MAP_FAILED);
+
+    cloneArgs.flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND;
+    cloneArgs.exit_signal = SIGCHLD;
+    cloneArgs.stack = (u64)stackBuffer;
+    cloneArgs.stack_size = stackSize.rlim_cur;
+
+    thr->pid = syscall(SYS_clone3, &cloneArgs, sizeof(cloneArgs));
+
+    switch (thr->pid) {
+    case THREAD_FAILED:
+        ret = OS_THREAD_STATUS_FAILED_TO_CREATE;
+        break;
+    case THREAD_CREATED:
+        INFO_LOG("thread started with PID: %d", thr->pid);
+        func(arg);
+        ret = OS_THREAD_STATUS_SUCCESS;
+        break;
+    }
+    return ret;
+}
+
+OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret)
+{
+    TODO("implement OS_ThreadJoin");
+    UNUSED(ret);
+
+    int status = 0;
+    waitpid(thr->pid, &status, 0);
+
+    return OS_THREAD_STATUS_SUCCESS;;
+}
+
+void OS_TimerStart(OS_Timer *timer)
+{
+    ASSERT(0 == clock_gettime(CLOCK_MONOTONIC, &timer->start),
+           "couldn't measure time start: "STR_FMT, GetErrnoStr(errno));
+}
+
+void OS_TimerEnd(OS_Timer *timer)
+{
+    ASSERT(0 == clock_gettime(CLOCK_MONOTONIC, &timer->end),
+           "couldn't measure time end: "STR_FMT, GetErrnoStr(errno));
+}
+
+usz OS_TimerGetNsec(OS_Timer *timer)
+{
+    return (timer->end.tv_sec - timer->start.tv_sec) * 1000000000 + (timer->end.tv_nsec - timer->start.tv_nsec);
+}
+
+u64 OS_TimerGetUsec(OS_Timer *timer)
+{
+    return OS_TimerGetNsec(timer)/1000;
+}
+
+f64 OS_TimerGetMsec(OS_Timer *timer)
+{
+    return ((f64)OS_TimerGetUsec(timer))/1000;
+}
+
+usz OS_TimerGetSec(OS_Timer *timer)
+{
+    return ((usz)OS_TimerGetMsec(timer))/1000;
+}
+
+void OS_SleepUsec(u32 usec)
+{
+    usleep(usec);
+}
+
+void OS_SleepMsec(f32 msec)
+{
+    OS_SleepUsec((u32)(msec * 1000));
+}
+
+void OS_SleepSec(u32 sec)
+{
+    /* we don't call 'os_sleep_msec',
+     * as 1000000 usec appears to trigger EINVAL on some systems
+     * */
+    sleep((unsigned int)sec);
+}
+
+usz OS_GetMaxPathLength(char *dir)
+{
+    return pathconf(dir, _PC_PATH_MAX);
+}
+
+OS_StreamStatus OS_StreamOpen(OS_Stream *stream, const OS_StreamInfo *info)
+{
+    OS_StreamStatus st = OS_STREAM_STATUS_UNKNOWN;
+    switch (info->type) {
+    case OS_STREAM_TYPE_IPC:
+    case OS_STREAM_TYPE_NETWORK:
+        st = OpenSocketStream(stream, info->socketInfo);
+        break;
+    case OS_STREAM_TYPE_FILE:
+        st = OpenFileStream(stream, info->fileInfo);
+        break;
+    }
+
+    return st;
+}
+
+OS_StreamStatus OS_StreamClose(OS_Stream *stream)
+{
+    switch (stream->type) {
+    case OS_STREAM_TYPE_IPC:
+    case OS_STREAM_TYPE_NETWORK:
+        OS_SocketClose(&stream->socket);
+        break;
+    case OS_STREAM_TYPE_FILE:
+        OS_FileClose(&stream->file);
+        break;
+    }
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+#define COPY_CHUNK_SIZE sizeof(u64)
+OS_StreamStatus OS_StreamCopy(OS_Stream *dst, OS_Stream *src, usz ammount)
+{
+    for (usz i = 0; i < ammount/COPY_CHUNK_SIZE; ++i) {
+        u64 chunk;
+        OS_StreamRead(src, &chunk, COPY_CHUNK_SIZE);
+        OS_StreamWrite(dst, &chunk, COPY_CHUNK_SIZE);
+    }
+    for (usz i = 0; i < ammount%COPY_CHUNK_SIZE; ++i) {
+        u8 bytes;
+        OS_StreamRead(src, &bytes, BYTE_SIZE);
+        OS_StreamWrite(dst, &bytes, BYTE_SIZE);
+    }
+}
+
+OS_StreamStatus OS_StreamRead(OS_Stream *stream, void *buffer, const usz size)
+{
+    switch (stream->type) {
+    case OS_STREAM_TYPE_IPC:
+    case OS_STREAM_TYPE_NETWORK:
+        OS_SocketClose(&stream->socket);
+        break;
+    case OS_STREAM_TYPE_FILE:
+        OS_FileRead(&stream->file);
+        break;
+    case OS_STREAM_TYPE_BYTE:
+        M_BufferRead(&stream->byteBuffer, buffer, size, size);
+        break;
+    }
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+OS_StreamStatus OS_StreamWrite(OS_Stream *stream, const void *buffer, const usz size)
+{
+    switch (stream->type) {
+    case OS_STREAM_TYPE_IPC:
+    case OS_STREAM_TYPE_NETWORK:
+        OS_SocketWrite(&stream->socket, buffer, size);
+        break;
+    case OS_STREAM_TYPE_FILE:
+        OS_FileWrite(&stream->file, buffer, size);
+        break;
+    case OS_STREAM_TYPE_BYTE:
+        TODO("check if \"M_BufferWrite(s, buff, size, size)\""
+             " causes any problems (destination size same as write size)...");
+        M_BufferWrite(&stream->byteBuffer, buffer, size, size);
+        break;
+    }
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+OS_StreamStatus OS_StreamPrintf(OS_Stream *stream, const char *fmt, ...)
+{
+    TODO("implement Variadic I/O functions");
+    char *buffer = NULL;
+    VA_Args args;
+
+    VA_Start(fmt, args);
+    CStr_FormatAllocVariadic(&buffer, fmt, args);
+    usz size = CStr_Length(buffer);
+
+    OS_StreamWrite(stream, buffer, size);
+
+    M_Free(buffer);
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+void OS_FileOpen(OS_File *f, const OS_FileCreateInfo *info)
+{
+    TODO("error handling");
+    *f = open(info->path, info->perm);
+    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall open failed!");
+}
+
+void OS_FileCreate(OS_File *f, const OS_FileCreateInfo *info)
+{
+    TODO("error handling");
+    info->perm |= O_CREAT;
+    *f = open(info->path, info, S_IWUSR);
+    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall creat (open) failed!");
+}
+
+void OS_FileRead(const OS_File *f, void *buffer, const usz bytes)
+{
+    TODO("error handling");
+    usz st = read(*f, buffer, size);
+    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall read failed!");
+}
+
+void OS_FileWrite(const OS_File *f, const void *buffer, const usz bytes)
+{
+    TODO("error handling!");
+    usz st = write(*f, buffer, size);
+    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
+}
+
+void OS_FilePrintf(const OS_File *f, const char *fmt, ...)
+{
+    char *msg;
+    VA_Args args;
+
+    VA_Start(fmt, args);
+    CStr_FormatAllocVariadic(&msg, fmt, args);
+    OS_FileWrite(msg);
+    M_Free(msg);
+}
+
+void OS_FileClose(OS_File *f)
+{
+    TODO("error handling");
+    usz st = close(*f);
+    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall close failed!");
+    *f = NULL;
+}
+
+void OS_FileFlush(OS_File *f)
+{
+    IMPL();
+    UNUSED(f);
+}
+
+enum socketStatusCodes {
+    OS_SOCKET_STATUS_SUCCESS = 0,
+    OS_SOCKET_STATUS_HOST_OUT_OF_FDS,
+    OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS,
+    OS_SOCKET_STATUS_PROCESS_OUT_OF_SOCKETS,
+    OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS,
+    OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY,
+    OS_SOCKET_STATUS_PROTECTED_ADDRESS,
+    OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE,
+    OS_SOCKET_STATUS_INVALID_SOCKET,
+    OS_SOCKET_STATUS_SOCKET_ALREADY_BOUND,
+    OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE,
+    OS_SOCKET_STATUS_CONNECTION_WAS_ABORTED,
+    OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED,
+    OS_SOCKET_STATUS_SOCKET_IS_NOT_LISTENING,
+    OS_SOCKET_STATUS_BLOCKED_BY_FIREWALL,
+    OS_SOCKET_STATUS_PREVIOUS_CONNECT_INCOMPLETE,
+    OS_SOCKET_STATUS_SERVICE_NOT_AVAILABLE,
+    OS_SOCKET_STATUS_SOCKET_IS_NOT_CONNECTED,
+    OS_SOCKET_STATUS_SOCKET_IS_ALREADY_CONNECTED,
+    OS_SOCKET_STATUS_CONNECTION_TIMEOUT,
+    OS_SOCKET_STATUS_RECEIVE_TIMEOUT,
+    OS_SOCKET_STATUS_CLOSE_GOT_INTERRUPTED_BY_OS,
+    OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR,
+    OS_SOCKET_STATUS_PEER_RESET_CONNECTION,
+    OS_SOCKET_STATUS_SEND_GOT_INTERRUPTED_BY_OS,
+    OS_SOCKET_STATUS_NO_TARGET_SPECIFIED,
+    OS_SOCKET_STATUS_PEER_DOWN,
+    OS_SOCKET_STATUS_RECV_GOT_INTERRUPTED_BY_OS,
+
+    OS_SOCKET_STATUS_UNKNOWN,
+    OS_SOCKET_STATUS_COUNT,
+};
+
+enum socketFunctions {
+    SOCK_FN_SOCKET,
+    SOCK_FN_BIND,
+    SOCK_FN_LISTEN,
+    SOCK_FN_ACCEPT,
+    SOCK_FN_CONNECT,
+    SOCK_FN_SEND,
+    SOCK_FN_RECV,
+    SOCK_FN_SENDTO,
+    SOCK_FN_RECVFROM,
+    SOCK_FN_SENDMSG,
+    SOCK_FN_RECVMSG,
+    SOCK_FN_SHUTDOWN,
+    SOCK_FN_CLOSE,
+    SOCK_FN_GETSOCKOPT,
+    SOCK_FN_SETSOCKOPT,
+    SOCK_FN_GETSOCKNAME,
+    SOCK_FN_GETPEERNAME,
+    SOCK_FN_SELECT,
+    SOCK_FN_POLL,
+    SOCK_FN_EPOLL_CREATE,
+    SOCK_FN_EPOLL_CTL,
+    SOCK_FN_EPOLL_WAIT,
+    SOCK_FN_ACCEPT4,
+};
+
+OS_SocketStatus OS_SocketEnableSockOpt(const OS_Socket *sock, sz sockOpt)
+{
+    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_ENABLE);
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
+}
+
+OS_SocketStatus OS_SocketDisableSockOpt(const OS_Socket *sock, sz sockOpt)
+{
+    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_DISABLE, &(socklen_t) {sizeof(int)});
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
+}
+
+OS_SocketStatus OS_SocketGetSockOpt(const OS_Socket *sock, sz sockOpt, sz *value)
+{
+    usz st = getsockopt(*sock, SOL_SOCKET, sockOpt, value, &(socklen_t) {sizeof(value)});
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_GETSOCKOPT, errno);
+}
+
+OS_SocketStatus OS_SocketSetSockObj(const OS_Socket *sock, sz sockOpt, const void *sockObj, usz size)
+{
+    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, size);
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
+}
+
+OS_SocketStatus OS_SocketGetSockObj(const OS_Socket *sock, sz sockOpt, void *sockObj, usz size)
+{
+    usz st = getsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, size);
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_GETSOCKOPT, errno);
+}
+
+OS_SocketStatus OS_SocketCreateTCPSocket(const OS_Socket *sock, const OS_SocketTCPCreateInfo *info)
+{
+    struct sockaddr_in socketAddress = {0};
+    usz st = 0;
+
+    st = socket(AF_INET, SOCK_STREAM, 0);
+    if (!OS_LINUX_SYSCALL_SUCCESS(st))
+        return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SOCKET, errno);
+
+    *sock = st;
+    socketAddress.sin_family        = AF_INET;
+    socketAddress.sin_addr.s_addr   = info.netAddr.ipv4;
+    socketAddress.sin_port          = info.netAddr.port;
+
+    st = bind(*sock, (struct sockaddr *)&socketAddress, sizeof(socketAddress));
+    if (!OS_LINUX_SYSCALL_SUCCESS(st))
+        return OS_SocketErrnoCodeToStatus(st, SOCK_FN_BIND, errno);
+
+    st = listen(*sock, info.queueLength)
+
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_LISTEN, errno);
+}
+
+OS_SocketStatus OS_SocketCreateIPCSocket(const OS_Socket *sock, const OS_SOcketIPCCreateInfo *info)
+{
+    UNUSED(sock);
+    UNUSED(info);
+    IMPL();
+}
+
+OS_SocketStatus OS_SocketBindPath(const OS_Socket *sock)
+{
+    UNUSED(sock);
+}
+
+OS_SocketStatus OS_SocketAccept(const OS_Socket *server, OS_Socket *client, OS_NetworkAddress *address)
+{
+    usz st = 0;
+    struct sockaddr_in socketAddress = {0};
+    st = accept(*server, (struct sockaddr *)&socketAddress, &(socklen_t) {sizeof(socketAddress)});
+    if (!OS_LINUX_SYSCALL_SUCCESS(st))
+        return OS_SocketErrnoCodeToStatus(st, SOCK_FN_ACCEPT, errno);
+
+    *client = st;
+    address.ipv4 = socketAddress.sin_addr.s_addr;
+    address.port = socketAddress.sin_port;
+
+    return OS_SOCKET_STATUS_SUCCESS;
+}
+
+OS_SocketStatus OS_SocketConnect(const OS_Socket *client, OS_Socket *server, const OS_NetworkAddress *address)
+{
+    usz st = 0;
+    struct sockaddr_in socketAddress = {0};
+
+    st = connect(*client, (struct sockaddr *)&socketAddress, sizeof(socketAddress));
+
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_CONNECT, errno);
+}
+
+OS_SocketStatus OS_SocketClose(const OS_Socket *sock)
+{
+    usz st = 0;
+
+    st = close(*sock);
+
+    return OS_SocketErrnoCodeToStatus(st);
+}
+
+OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock)
+{
+    usz st = 0;
+
+    st = shutdown(*sock);
+
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SHUTDOWN, errno);
+}
+
+OS_SocketStatus OS_SocketReceiveData(const OS_Socket *sock, char *buffer, usz size, usz flags)
+{
+    usz st = 0;
+
+    st = recv(*sock, size, flags);
+
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_RECV, errno);
+}
+
+OS_SocketStatus OS_SocketSendData(const OS_Socket *sock, char *buffer, usz size, usz flags)
+{
+    usz st = 0;
+
+    st = send(*sock, size, flags);
+
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SEND, errno);
+}
+
+/* big ugly function... don't blame me. Blame horrily outdated POSIX errors */
+static OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunction, usz errnoVal)
+{
+    if (statusCode < 0) {
+        switch (socketFunction) {
+        case SOCK_FN_SOCKET:
+            switch (errnoVal) {
+            case EMFILE: return OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS;
+            case ENOBUFS: return OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY;
+            case ENOMEM: return OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY;
+            }
+            UNREACHABLE();
+        case SOCK_FN_BIND:
+            switch (errnoVal) {
+            case EACCES: return OS_SOCKET_STATUS_PROTECTED_ADDRESS;
+            case EADDRINUSE: return OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE;
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case EINVAL: return OS_SOCKET_STATUS_SOCKET_ALREADY_BOUND;
+            }
+            UNREACHABLE();
+        case SOCK_FN_LISTEN:
+            switch (errnoVal) {
+            case EADDRINUSE: return OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE;
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ENOTSOCK: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            }
+            UNREACHABLE();
+        case SOCK_FN_ACCEPT:
+            switch (errnoVal) {
+            case EWOULDBLOCK: return OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE;
+#if !defined(PLATFORM_LINUX)
+            case EAGAIN: return OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE;
+#endif /* PLATFORM_LINUX */
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ECONNABORTED: return OS_SOCKET_STATUS_CONNECTION_WAS_ABORTED;
+            case EINTR: return OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED;
+            case EINVAL: return OS_SOCKET_STATUS_SOCKET_IS_NOT_LISTENING;
+            case EMFILE: return OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS;
+            case ENFILE: return OS_SOCKET_STATUS_HOST_OUT_OF_FDS;
+            case ENOBUFS: return OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS;
+            case ENOMEM: return OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS;
+            case ENOTSOCK: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            }
+            UNREACHABLE();
+        case SOCK_FN_CONNECT:
+            switch (errnoVal) {
+            case EPERM: return OS_SOCKET_STATUS_BLOCKED_BY_FIREWALL;
+            case EADDRINUSE: return OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE;
+            case EALREADY: return OS_SOCKET_STATUS_PREVIOUS_CONNECT_INCOMPLETE;
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ECONNREFUSED: return OS_SOCKET_STATUS_SERVICE_NOT_AVAILABLE;
+            case EINPROGRESS: TODO("implement EINPROGRESS for connect()"); ABORT();
+            case EINTR: return OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED;
+            case EISCONN: return OS_SOCKET_STATUS_SOCKET_IS_ALREADY_CONNECTED;
+            case ENOTSOCK: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ETIMEDOUT: return OS_SOCKET_STATUS_CONNECTION_TIMEOUT;
+            }
+            UNREACHABLE();
+        case SOCK_FN_SEND:
+            switch (errnoVal) {
+            case EAGAIN: TODO("implement EAGAIN for send()"); ABORT();
+            case EALREADY: TODO("implement EALREADY for send()"); ABORT();
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ECONNRESET: return OS_SOCKET_STATUS_PEER_RESET_CONNECTION;
+            case EDESTADDRREQ: return OS_SOCKET_STATUS_NO_TARGET_SPECIFIED;
+            case EINTR: return OS_SOCKET_STATUS_SEND_GOT_INTERRUPTED_BY_OS;
+            case ENOMEM: return OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY;
+            case ENOTCONN: return OS_SOCKET_STATUS_SOCKET_IS_NOT_CONNECTED;
+            case ENOTSOCK: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            }
+            UNREACHABLE();
+        case SOCK_FN_RECV:
+            switch (errnoVal) {
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ENOTSOCK: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case ECONNREFUSED: return OS_SOCKET_STATUS_PEER_DOWN;
+            case EINTR: return OS_SOCKET_STATUS_RECV_GOT_INTERRUPTED_BY_OS;
+            case ENOTCONN: return OS_SOCKET_STATUS_SOCKET_IS_NOT_CONNECTED;
+            }
+            UNREACHABLE();
+        case SOCK_FN_SENDTO:
+            UNREACHABLE();
+        case SOCK_FN_RECVFROM:
+            UNREACHABLE();
+        case SOCK_FN_SENDMSG:
+            UNREACHABLE();
+        case SOCK_FN_RECVMSG:
+            UNREACHABLE();
+        case SOCK_FN_SHUTDOWN:
+            UNREACHABLE();
+        case SOCK_FN_CLOSE:
+            switch (errnoVal) {
+            case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
+            case EINTR: return OS_SOCKET_STATUS_CLOSE_GOT_INTERRUPTED_BY_OS;
+            case EIO: TODO("check if EIO makes sense upon closing socket!");
+                      return OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR;
+            }
+            UNREACHABLE();
+        case SOCK_FN_GETSOCKOPT:
+            UNREACHABLE();
+        case SOCK_FN_SETSOCKOPT:
+            UNREACHABLE();
+        case SOCK_FN_GETSOCKNAME:
+            UNREACHABLE();
+        case SOCK_FN_GETPEERNAME:
+            UNREACHABLE();
+        case SOCK_FN_SELECT:
+            UNREACHABLE();
+        case SOCK_FN_POLL:
+            UNREACHABLE();
+        case SOCK_FN_EPOLL_CREATE:
+            UNREACHABLE();
+        case SOCK_FN_EPOLL_CTL:
+            UNREACHABLE();
+        case SOCK_FN_EPOLL_WAIT:
+            UNREACHABLE();
+        case SOCK_FN_ACCEPT4:
+            UNREACHABLE();
+        }
+        UNREACHABLE();
+    }
+
+    return OS_SOCKET_STATUS_SUCCESS;
+}
+
+static char *g_OS_SocketStatusCodeStrings[] = {
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_SUCCESS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_HOST_OUT_OF_FDS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PROCESS_OUT_OF_SOCKETS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PROTECTED_ADDRESS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_INVALID_SOCKET),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_SOCKET_ALREADY_BOUND),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_CONNECTION_WAS_ABORTED),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_SOCKET_IS_NOT_LISTENING),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_SOCKET_IS_NOT_CONNECTED),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_BLOCKED_BY_FIREWALL),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PREVIOUS_CONNECT_INCOMPLETE),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_SERVICE_NOT_AVAILABLE),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_CONNECTION_TIMEOUT),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_RECEIVE_TIMEOUT),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_CLOSE_GOT_INTERRUPTED_BY_OS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PEER_RESET_CONNECTION),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_NO_TARGET_SPECIFIED),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_PEER_DOWN),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_RECV_GOT_INTERRUPTED_BY_OS),
+    ENUM_STR_ENTRY(OS_SOCKET_STATUS_UNKNOWN),
+};
+
+char *OS_SocketStringStatus(usz code)
+{
+    if (code > OS_SOCKET_STATUS_UNKNOWN)
+        code = OS_SOCKET_STATUS_UNKNOWN;
+
+    return g_OS_SocketStatusCodeStrings[code];
+}
+
+static char *GetErrnoStr(int errnoVal)
+{
+    return strerror(errnoVal);
+}
+
+static bool SupportedAspectRatio(OS_WindowCreateInfo *info)
+{
+    IMPL();
+    UNUSED(info);
+    return true;
+}
+
+static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileInfo *info)
+{
+    OS_FileOpen(&stream->file, info);
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+static OS_StreamStatus OpenSocketStream(OS_Stream *stream, const OS_SocketInfo *info)
+{
+    OS_SocketOpen(&stream->socket, info);
+    return OS_STREAM_STATUS_SUCCESS;
+}
+

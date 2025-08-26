@@ -1,0 +1,18 @@
+#ifndef __BERKELEY_SOCKETS_H__
+#define __BERKELEY_SOCKETS_H__
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/select.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>
+
+#endif /* __BERKELEY_SOCKETS_H__ */
