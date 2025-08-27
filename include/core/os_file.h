@@ -37,8 +37,8 @@ extern OS_File *OS_STDERR;
 
 void OS_FileOpen(OS_File *f, const OS_FileCreateInfo *info);
 void OS_FileCreate(const OS_File *f, const OS_FileCreateInfo *info);
-void OS_FileRead(const OS_File *f, void *buffer, const usz bytes);
-void OS_FileWrite(const OS_File *f, const void *buffer, const usz bytes);
+void OS_FileRead(const OS_File *f, void *buffer, const usz bufferSize, const usz bytes);
+void OS_FileWrite(const OS_File *f, const void *buffer, const usz bufferSize, const usz bytes);
 void OS_FilePrintf(const OS_File *f, const char *fmt, ...);
 void OS_FileClose(OS_File *f);
 void OS_FileFlush(const OS_File *f);

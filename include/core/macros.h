@@ -7,6 +7,8 @@
 #define MACRO_START do {
 #define MACRO_END   } while (0)
 
+#define __EMPTY_MACRO__ MACRO_START MACRO_END
+
 /* not required, just to match MACRO_START, MACRO_END for multiline macros */
 #define EXPR_MACRO_START    (
 #define EXPR_MACRO_END      )

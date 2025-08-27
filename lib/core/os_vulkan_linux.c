@@ -10,7 +10,7 @@ void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
         VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
     };
 
-    wmExtensions->count = ARR_SIZE(requiredXlibExtensions);
+    wmExtensions->count = ARRAY_SIZE(requiredXlibExtensions);
     wmExtensions->names = M_Alloc(sizeof(*wmExtensions->names), wmExtensions->count);
     M_Copy(wmExtensions->names, requiredXlibExtensions, sizeof(char *)*wmExtensions->count);
 }

@@ -65,6 +65,8 @@ typedef struct {
 enum M_BufferStatusCodes {
     M_BUFFER_STATUS_SUCCESS = 0,
     M_BUFFER_STATUS_OUT_OF_MEMORY,
+    M_BUFFER_STATUS_OUT_OF_BOUNDS_READ,
+    M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE,
 };
 typedef u32 M_BufferStatus;
 

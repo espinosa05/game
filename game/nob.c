@@ -15,18 +15,11 @@
 #define LIBRARY_LINKS PLATFORM_LIBRARY_LINKS
 
 #define CC      "gcc"
-#define CFLAGS  "-fPIC", "-I../../include", LIBRARY_LINKS, "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
+#define CFLAGS  "-fPIC", "-I../include", LIBRARY_LINKS, "-Wall", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-c"
 #define LIBNAME "core"
 
-#ifdef LIB_SHARED
-#   define LIB_EXT ".so"
-#else
-#   define LIB_EXT ".a"
-#endif /* LIB_SHARED */
-
-
 #define LD      "ld"
-#define LDFLAGS "-static"
+#define LDFLAGS "-shared"
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
@@ -114,7 +107,7 @@ void build_library(void)
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
 
     /* finally, link object files into a shared library */
-    nob_cmd_append(&comp_cmd, LD, LDFLAGS, "-o", OUT_DIR "lib" LIBNAME LIB_EXT);
+    nob_cmd_append(&comp_cmd, LD, LDFLAGS, "-o", OUT_DIR "lib" LIBNAME ".so");
     for (int i = 0; i < obj_files.count; ++i) {
         nob_cmd_append(&comp_cmd, obj_files.items[i]);
     }

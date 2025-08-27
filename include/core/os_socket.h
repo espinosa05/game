@@ -19,6 +19,9 @@ typedef SOCKET OS_Socket;
 
 enum socketStatusCodes {
     OS_SOCKET_STATUS_SUCCESS = 0,
+    OS_SOCKET_STATUS_OUT_OF_BOUNDS_READ,
+    OS_SOCKET_STATUS_OUT_OF_BOUNDS_WRITE,
+
 #if defined(PLATFORM_LINUX)
     OS_SOCKET_STATUS_HOST_OUT_OF_FDS,
     OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS,
@@ -85,11 +88,9 @@ OS_SocketStatus OS_SocketConnect(const OS_Socket *client, OS_Socket *server, con
 OS_SocketStatus OS_SocketClose(const OS_Socket *sock);
 OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock);
 
-OS_SocketStatus OS_SocketReceiveData(const OS_Socket *sock, char *buffer, usz size, usz flags);
-OS_SocketStatus OS_SocketSendData(const OS_Socket *sock, char *buffer, usz size, usz flags);
+OS_SocketStatus OS_SocketReceiveData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags);
+OS_SocketStatus OS_SocketSendData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags);
 
-/* convert the atrocious Errno values to usable error codes */
-OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunction, usz errnoVal);
 char *OS_SocketStringStatus(usz code);
 
 #endif /* __CORE_OS_SOCKET_H__ */

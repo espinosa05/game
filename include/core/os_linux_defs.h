@@ -22,6 +22,7 @@ typedef struct {
     pid_t pid;
 } OS_Thread;
 
+
 /* we just define the native handle for a socket. No additional API*/
 typedef int OS_Socket;
 
@@ -29,6 +30,6 @@ typedef int OS_Socket;
 typedef struct {
     struct timespec start;
     struct timespec end;
-} OS_Timer;
+} OS_Time;
 
 #endif /* __CORE_OS_LINUX_DEFS_H__ */

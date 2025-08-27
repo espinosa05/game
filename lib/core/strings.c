@@ -16,15 +16,15 @@ void CStr_FormatAllocVariadic(char **buffer, char *fmt, VA_Args args)
 void CStr_FormatAlloc(char **buffer, char *fmt, ...)
 {
     VA_Args args;
-    VA_Start(fmt, args);
+    VA_Start(args, fmt);
 
-    CStr_FormatAllocVariadic(buffer, size, fmt ,args);
+    CStr_FormatAllocVariadic(buffer, fmt ,args);
 }
 
 char *CStr_Format(char *buffer, usz size, char *fmt, ...)
 {
     VA_Args args;
-    VA_Start(fmt, args);
+    VA_Start(args, fmt);
 
     CStr_FormatVariadic(buffer, size, fmt, args);
 

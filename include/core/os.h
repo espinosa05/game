@@ -39,7 +39,6 @@ enum osThreadStatusCodes {
 typedef sz OS_Tid;
 typedef void (*OS_ThreadFunction) (void *);
 
-
 enum osExitCodes {
     OS_EXIT_SUCCESS = 0,
     OS_EXIT_FAILURE = 1,
@@ -79,14 +78,12 @@ OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret);
 //OS_ThreadStatus OS_ThreadGetID(OS_Thread *thr, OS_Tid *tid);
 //OS_ThreadStatus OS_ThreadDetach(OS_Thread *thr);
 
-void OS_TimeStart(OS_Time *timer);
-void OS_TimeEnd(OS_Time *timer);
+void OS_TimeStart(OS_Time *time);
+void OS_TimeEnd(OS_Time *time);
 
 u64 OS_TimeGetUsec(OS_Time *time);
 f64 OS_TimeGetMsec(OS_Time *time);
 usz OS_TimeGetSec(OS_Time *time);
-
-OS_SleepMsec(OS_TimeGetUsec(&time));
 
 void OS_SleepUsec(u32 usec);
 void OS_SleepMsec(f32 msec);

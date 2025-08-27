@@ -5,8 +5,10 @@
 #include <core/log.h>
 #include <core/macros.h>
 
-#ifdef CORE_HEADLESS
+#ifndef CORE_HEADLESS
 #   include <core/native_ui.h>
+#else
+#   define ASSERT_GUI(...) __EMPTY_MACRO__
 #endif /* CORE_HEADLESS */
 
 #if defined(PLATFORM_LINUX)
@@ -17,17 +19,19 @@
 #   include "macos_utils.h"
 #endif
 
+
+#define NULLABLE        /* empty */
+
 #define STR_SYM(sym)    #sym
 #define TODO(...)       LOG_T("TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
 #define IMPL()          TODO("IMPLEMENT FUNCTION")
 #define ARRAY_SIZE(a)   (sizeof(a)/sizeof(*a))
 #define ABORT()         abort()
 
-
-#define UNUSED(v)                               \
-    MACRO_START                                 \
-        LOG_T("UNUSED", ANSI_COLOR_MAGENTA);    \
-        (void)(v);                              \
+#define UNUSED(v)                                               \
+    MACRO_START                                                 \
+        LOG_T("UNUSED", ANSI_COLOR_MAGENTA, "variable -> %s");  \
+        (void)(v);                                              \
     MACRO_END
 
 #define ENUM_STR_ENTRY(e) [e] = #e
@@ -57,26 +61,19 @@
         (a) ^= (b);         \
     MACRO_END
 
-#define ASSERT_RT(a, ...) ASSERT_GUI(a, __VA_ARGS__)
+#define ASSERT_RT(a, ...)                                                   \
+    MACRO_START                                                             \
+        if (UNLIKELY(!(a))) {                                               \
+            LOG_T("ASSERT", ANSI_COLOR_RED, "assertion '"#a"' failed:\t");  \
+            LOG(__VA_ARGS__);                                               \
+            LOG("\n");                                                      \
+            ABORT();                                                        \
+        }                                                                   \
+    MACRO_END
 #define ASSERT(...) ASSERT_RT(__VA_ARGS__)
 
-#ifdef CORE_HEADLESS
-#   undef ASSERT_RT
-#   undef ASSERT
-/* runtime assertions, present in release builds */
-#   define ASSERT_RT(a, ...)                                                    \
-        MACRO_START                                                             \
-            if (UNLIKELY(!(a))) {                                               \
-                LOG_T("ASSERT", ANSI_COLOR_RED, "assertion '"#a"' failed:\t");  \
-                LOG(__VA_ARGS__);                                               \
-                LOG("\n");                                                      \
-                ABORT();                                                        \
-            }                                                                   \
-        MACRO_END
-#   define ASSERT(...) ASSERT_RT(__VA_ARGS__)
-#endif /* CORE_RELEASE */
-
 #ifdef CORE_RELEASE
+#   undef ASSERT(...)
 #   define ASSERT(a, ...) MACRO_START MACRO_END
 #endif /* CORE_RELEASE */
 

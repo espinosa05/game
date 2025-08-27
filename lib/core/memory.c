@@ -12,9 +12,9 @@ void M_ArenaInit(M_Arena *arena, const M_ArenaCreateInfo *info)
     }
 }
 
-void *M_ArenaAlloc(M_Arena *arena, usz size, usz count, M_ArenaStatusCode)
+void *M_ArenaAlloc(M_Arena *arena, usz size, usz count)
 {
-    void *buff = arena->buffer + arena->memUsed;
+    void *buff = (u8 *)arena->buffer + arena->memUsed;
     arena->memUsed += size * count;
 
     if (arena->memUsed > arena->memAvail)
@@ -29,7 +29,7 @@ void M_ArenaDestroy(M_Arena *arena)
         M_Free(arena->buffer);
 }
 
-void M_BufferInit(M_Buffer *buff, const M_BufferInfo *info)
+void M_BufferInit(M_Buffer *buff, const M_BufferCreateInfo *info)
 {
     buff->base = info->buffer;
     buff->size = info->size;
@@ -38,22 +38,24 @@ void M_BufferInit(M_Buffer *buff, const M_BufferInfo *info)
 M_BufferStatus M_BufferRead(M_Buffer *buffer, void *src, usz dstCap, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
-        return M_BUFFER_OUT_OF_MEMORY;
+        return M_BUFFER_STATUS_OUT_OF_MEMORY;
+
+    if (dstCap < ammount)
+        return M_BUFFER_STATUS_OUT_OF_BOUNDS_READ;
 
     M_Copy(src, buffer->base, ammount);
-    return M_BUFFER_SUCCESS;
+    return M_BUFFER_STATUS_SUCCESS;
 }
 
 M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
-        return M_BUFFER_OUT_OF_MEMORY;
+        return M_BUFFER_STATUS_OUT_OF_MEMORY;
 
-    M_Copy(buffer->base, src, ammount);
-    return M_BUFFER_SUCCESS;
+    if (dstCap < ammount)
+        return M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE;
+
+    M_Copy(buffer->base, dst, ammount);
+    return M_BUFFER_STATUS_SUCCESS;
 }
 
-void InitPersistentArena(void)
-{
-
-}

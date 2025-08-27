@@ -2,7 +2,7 @@
 #include "app.h"
 #include <core/cli.h>
 
-#define LOW_GERMAN_GREETING "Moin Yan, ik leev dik :^)"
+#define LOW_GERMAN_GREETING "Moin Yan, wo geiht di dat? :^)"
 
 void Main(const CLI_Args args)
 {

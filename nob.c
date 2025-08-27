@@ -7,6 +7,8 @@
 #define LIB_DIR "lib/"
 #define INC_DIR "include/"
 
+#define GAME_DIR "game/"
+
 #define CC      "gcc"
 #define CFLAGS  "-Wall", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-c", "-I" INC_DIR
 #define PROGNAME "game"
@@ -17,13 +19,11 @@
 /* IGNORE LIST */
 static const char *ignore_list[] = {
     __FILE__, /* obviusly, we disregard this very file */
-    "init_list.c",
 };
 
 /* base names for the required libraries */
 static const char *lib_names[] = {
     "core",
-    "net",
 };
 
 #define MIN_FILENAME_LEN 1
@@ -71,7 +71,7 @@ void copy_shared_libraries(void)
         Nob_Cmd copy_cmd = {0};
         Nob_String_Builder src_path = {0};
 
-        nob_sb_appendf(&src_path, "%s%s/out/lib%s.so",
+        nob_sb_appendf(&src_path, "%s%s/out/lib%s.a",
                        LIB_DIR, lib_names[i], lib_names[i]);
         nob_sb_append_null(&src_path);
 
@@ -81,6 +81,7 @@ void copy_shared_libraries(void)
         nob_sb_free(src_path);
         nob_cmd_free(copy_cmd);
     }
+
 }
 
 void build_libraries(void)
@@ -132,38 +133,42 @@ void parse_options(int argc, char **argv)
     }
 }
 
+void build_application()
+{
+    char *base_dir = nob_get_current_dir_temp();
+    NOB_ASSERT(nob_set_current_dir(GAME_DIR));
+
+    /* build game sources */
+    {
+        Nob_Cmd game_cmp_cmd = {0};
+        nob_cmd_append(&game_cmp_cmd, "./nob");
+        nob_cmd_run_sync(game_cmp_cmd);
+    }
+
+    NOB_ASSERT(nob_set_current_dir(base_dir));
+
+    /* copy the game object files */
+    {
+        Nob_Cmd game_copy_cmd = {0};
+        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "*.o", OUT_DIR);
+        nob_cmd_run_sync(game_copy_cmd);
+    }
+
+    nob_temp_reset();
+}
+
+void link_executable()
+{
+    Nob_Cmd game_link_cmd = {0};
+    nob_cmd_append(&game_link_cmd, LD, );
+}
+
 void build_project(void)
 {
-    Nob_Procs comp_threads = {0};
-    Nob_Cmd comp_cmd = {0};
-    Nob_File_Paths src = {0};
-    Nob_File_Paths obj_files = {0};
-
     NOB_ASSERT(nob_mkdir_if_not_exists(OUT_DIR));
     build_libraries();
-
-    /* build local sources */
-    NOB_ASSERT(nob_read_entire_dir(".",&src));
-    for (int i = 0; i < src.count; ++i) {
-        const char *obj_file = NULL;
-        const char *c_src = NULL;
-        if (!is_type(src.items[i], "c") || is_ignored(src.items[i]))
-            continue;
-        c_src = src.items[i];
-        obj_file = src_path_to_obj_path(c_src);
-        nob_da_append(&obj_files, obj_file);
-        nob_cmd_append(&comp_cmd, CC, CFLAGS);
-        nob_cmd_append(&comp_cmd, c_src, "-o", src_path_to_obj_path(c_src));
-        nob_da_append(&comp_threads, nob_cmd_run_async_and_reset(&comp_cmd));
-    }
-    NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
-
-    /* finally, link executable */
-    nob_cmd_append(&comp_cmd, CC, "-L./" OUT_DIR, LINKS, "-o", OUT_DIR PROGNAME ".elf");
-    for (int i = 0; i < obj_files.count; ++i) {
-        nob_cmd_append(&comp_cmd, obj_files.items[i]);
-    }
-    NOB_ASSERT(nob_cmd_run_sync(comp_cmd));
+    build_application();
+    link_executable();
 }
 
 void run_project(void)
