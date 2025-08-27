@@ -8,16 +8,16 @@ void M_ArenaInit(M_Arena *arena, const M_ArenaCreateInfo *info)
         arena->buffer = info->buffer;
     } else {
         arena->heap = TRUE;
-        arena->buffer = M_Alloc(BYTE_SIZE, info->bufferSize);
+        arena->buffer = M_Alloc(BYTE_SIZE, info->memSize);
     }
 }
 
 void *M_ArenaAlloc(M_Arena *arena, usz size, usz count, M_ArenaStatusCode)
 {
-    void *buff = arena->buff + arena->used;
-    arena->used += size * count;
+    void *buff = arena->buffer + arena->memUsed;
+    arena->memUsed += size * count;
 
-    if (arena->used > arena->bufferSize)
+    if (arena->memUsed > arena->memAvail)
         return NULL;
 
     return buff;

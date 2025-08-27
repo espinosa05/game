@@ -10,7 +10,7 @@ char *CStr_FormatVariadic(char *buffer, usz size, char *fmt, VA_Args args)
 
 void CStr_FormatAllocVariadic(char **buffer, char *fmt, VA_Args args)
 {
-    vasnprintf(buffer, fmt, args);
+    vasprintf(buffer, fmt, args);
 }
 
 void CStr_FormatAlloc(char **buffer, char *fmt, ...)

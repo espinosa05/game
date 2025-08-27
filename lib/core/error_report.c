@@ -12,7 +12,7 @@ void ER_ClearReport(ErrorReport *er)
 /* very simple string builder, might extract this to it's own definition later (which means never) */
 void ER_AppendReport(ErrorReport *er, char *reportFmt, ...)
 {
-    VA_List ap;
+    VA_Args ap;
     char *report = NULL;
 
     VA_Start(ap, reportFmt);

@@ -285,7 +285,7 @@ OS_StreamStatus OS_StreamPrintf(OS_Stream *stream, const char *fmt, ...)
     char *buffer = NULL;
     VA_Args args;
 
-    VA_Start(fmt, args);
+    VA_Start(args, fmt);
     CStr_FormatAllocVariadic(&buffer, fmt, args);
     usz size = CStr_Length(buffer);
 
@@ -330,7 +330,7 @@ void OS_FilePrintf(const OS_File *f, const char *fmt, ...)
     char *msg;
     VA_Args args;
 
-    VA_Start(fmt, args);
+    VA_Start(args, fmt);
     CStr_FormatAllocVariadic(&msg, fmt, args);
     OS_FileWrite(msg);
     M_Free(msg);

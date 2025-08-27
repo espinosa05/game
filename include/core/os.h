@@ -79,9 +79,6 @@ OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret);
 //OS_ThreadStatus OS_ThreadGetID(OS_Thread *thr, OS_Tid *tid);
 //OS_ThreadStatus OS_ThreadDetach(OS_Thread *thr);
 
- OS_GetScreenWidth();
- OS_GetScreenHeight();
-
 void OS_TimeStart(OS_Time *timer);
 void OS_TimeEnd(OS_Time *timer);
 

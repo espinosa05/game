@@ -1,8 +1,7 @@
 #ifndef __CORE_LOG_H__
 #define __CORE_LOG_H__
 
-#include <core/cstd.h>
-#include <core/os_streams.h>
+#include <core/os_file.h>
 #include <core/macros.h>
 #include <core/strings.h>
 
@@ -30,8 +29,8 @@
 #define LOC_FMT "%s:%d:%s"
 #define LOC_ARG __FILE__, __LINE__, __func__
 
-#define F_LOG(file, ...) OS_StreamPrintf(file, __VA_ARGS__)
-#define LOG(...) F_LOG(STDERR_STREAM, __VA_ARGS__)
+#define F_LOG(file, ...) OS_FilePrintf(file, __VA_ARGS__)
+#define LOG(...) F_LOG(OS_STDERR, __VA_ARGS__)
 
 #define F_LOG_T(file, color, tag, ...)                                                \
     MACRO_START                                                                       \

@@ -16,6 +16,6 @@ char *CStr_Format(char *buffer, usz size, char *fmt, ...);
 void CStr_FormatAlloc(char **buffer, char *fmt, ...);
 
 char *CStr_FormatVariadic(char *buffer, usz size, char *fmt, VA_Args args);
-char *CStr_FormatAllocVariadic(char **buffer, char *fmt, VA_Args args);
+void CStr_FormatAllocVariadic(char **buffer, char *fmt, VA_Args args);
 
 #endif /* __CORE_STRINGS_H__ */
