@@ -3,9 +3,12 @@
 
 #include <core/cli.h>
 #include <core/types.h>
+#include <core/memory.h>
+#include <core/os.h>
+#include <core/os_file.h>
 
 typedef struct {
-    CLI_Args    cliArgs;
+    CLI_Args    args;
     const char  *name;
 } App_ContextCreateInfo;
 
@@ -23,7 +26,7 @@ typedef struct {
     usz         mainWindowWidth;
     usz         mainWindowHeight;
     const char  *configPath;
-    usz         mainWindowState;
+    usz         mainWindowInitState;
 } App_Config;
 
 void App_Init(App_Context *app, const App_ContextCreateInfo *info);
@@ -32,24 +35,26 @@ void App_Cleanup(App_Context *app);
 
 #ifdef APP_IMPL
 
-#include <core/memory.h>
+static void GetAppArena(M_Arena **arena);
+static void PrintOptions(const CLI_Opt *opts, usz count);
+static void ParseCliArgs(App_Config *conf, const CLI_Args args);
 
-u8 g_ArenaBuffer[MB_SIZE * 2] = {0};
-M_Arena g_Arena = {0};
-
-static void GetGlobalArena(M_Arena **arena)
+static void GetAppArena(M_Arena **arena)
 {
-    M_ArenaCreateInfo arenaInfo = {
+    static u8 appArenaBuffer[2*MB_SIZE];
+    static M_Arena appArena = {0};
+    static b32 onceFlag = FALSE;
+    ASSERT_RT(onceFlag, "The function was meant to be called once!");
+
+    M_ArenaCreateInfo appArenaInfo = {
         .external   = TRUE,
-        .buffer     = g_ArenaBuffer,
-        .memSize    = ARRAY_SIZE(g_ArenaBuffer),
+        .buffer     = appArenaBuffer,
+        .memSize    = ARRAY_SIZE(appArenaBuffer),
     };
-    M_ArenaInit(&g_Arena, &arenaInfo);
-    *arena = &g_Arena;
-}
+    M_ArenaInit(&appArena, &appArenaInfo);
+    *arena = &appArena;
 
-static void DefaultConfig(Config *conf)
-{
+    onceFlag = TRUE;
 }
 
 #define NULL_ENTRY 1
@@ -61,29 +66,35 @@ static void PrintOptions(const CLI_Opt *opts, usz count)
                                                     opts[i].longOpt,
                                                     opts[i].desc);
     }
-    OS_FileFlush(OS_STDOUT);
 }
 #undef NULL_ENTRY
 
-enum {OPT_HELP, OPT_CONF,};
-static void ParseCliArgs(Config *conf, const CLI_Args args)
+enum {OPT_HELP, OPT_CONF, OPT_WINR,};
+static void ParseCliArgs(App_Config *conf, const CLI_Args args)
 {
     CLI_Opt cliOptions[] = {
         {OPT_HELP, 'h', "help",     NO_ARGUMENT,        "prints this screen",},
-        {OPT_CONF, 'c', "config"    REQUIRED_ARGUMENT,  "sets a custom config path: '-c CONFIG_FILE', '--config CONFIG_FILE'",},
+        {OPT_CONF, 'c', "config",   REQUIRED_ARGUMENT,  "sets a custom config path: '-c CONFIG_FILE', '--config CONFIG_FILE'",},
+        {OPT_WINR, 'w', "winres",   REQUIRED_ARGUMENT,  "sets a custom resolution: '-w WIDTHxHEIGHT', '--winres WIDTHxHEIGHT', "
+                                                        "'--winsize help' to get a list of supported resolutions"},
         {0},
     };
 
     for (usz i = 0; i < args.c; ) {
         CLI_OptResult option = {0};
-        option = CLI_GetOpt(cliOptions, ARRAY_SIZE(cliOptions), &i);
-        ASSERT(EMPTY_ERROR_REPORT(option.err), "failed to parse cli argument '%s': %s", args.v[i], option.err.rString);
-        switch (option.val) {
+        option = CLI_GetOpt(cliOptions, ARRAY_SIZE(cliOptions), &i, args);
+        ASSERT_RT(0 == option.errCode, "failed to parse cli argument '"STR_FMT"'("SZ_FMT"): "STR_FMT,
+                                    args.v[i], option.errCode, option.errReport.rString);
+        switch (option.id) {
         case OPT_HELP:
             PrintOptions(cliOptions, ARRAY_SIZE(cliOptions));
             OS_Exit(OS_EXIT_SUCCESS);
         case OPT_CONF:
-            conf->configFilePath = option.arg;
+            conf->configPath = option.arg;
+            break;
+        case OPT_WINR:
+            TODO("setting resolution is not supported yet!");
+            INFO_LOG("continuing without custom resolution...");
             break;
         default: UNREACHABLE();
         }
@@ -93,22 +104,19 @@ static void ParseCliArgs(Config *conf, const CLI_Args args)
 void App_Init(App_Context *app, const App_ContextCreateInfo *info)
 {
     App_Config conf = {0};
-    InitAppConfig(&conf, info->args);
-    ApplyAppConfig(app, &conf);
-
-    InitAppBackend(app);
-
-    Scene mainMenu = {0};
-    InitMainMenuScene(&mainMenu);
+    ParseCliArgs(&conf, info->args);
+    GetAppArena(&app->memoryArena);
 }
 
 void App_Run(App_Context *app)
 {
-
+    UNUSED(app);
+    IMPL();
 }
 
 void App_Cleanup(App_Context *app)
 {
+    UNUSED(app);
     IMPL();
 }
 

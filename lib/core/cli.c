@@ -12,23 +12,21 @@ static b32 IsLastOpt(const CLI_Opt opt);
 /* static function declaration end */
 
 
-CLI_OptResult CLI_Getopt(const CLI_Opt optArr[], usz nOpts, usz *pCounter, CLI_Args args)
+CLI_OptResult CLI_GetOpt(const CLI_Opt optArr[], usz nOpts, usz *pCounter, CLI_Args args)
 {
     CLI_OptResult   res = INIT_OPT_RESULT_INVALID;
     CLI_Opt         optEntry = {0};
     const char      *arg = NULL;
-    usz             *counter = NULL;
-
-    ASSERT_RT(pCounter, "counter needs to be 0");
+    usz             counter = *pCounter;
 
     ASSERT_RT(IsLastOpt(optArr[nOpts - 1]),
               "corrupt data! last entry of CLI_opt array needs to be {0}");
 
-    ASSERT_RT(args.c >= *counter,
-              "index not inside argument range! (%d)", *counter);
+    ASSERT_RT(args.c >= counter,
+              "index not inside argument range! (%d)", counter);
 
-    res.optInd = *counter;
-    arg = args.v[*counter];
+    res.optInd = counter;
+    arg = args.v[counter];
 
     if (arg[0] != '-') {
         res.errCode = OPT_ERR_INVALID_OPT;
@@ -37,7 +35,7 @@ CLI_OptResult CLI_Getopt(const CLI_Opt optArr[], usz nOpts, usz *pCounter, CLI_A
     }
 
     /* consume current arg */
-    (*counter)++;
+    counter++;
 
     /* is long argument? (double dash) */
     if (arg[1] == '-') {
@@ -49,14 +47,17 @@ CLI_OptResult CLI_Getopt(const CLI_Opt optArr[], usz nOpts, usz *pCounter, CLI_A
     res.id = optEntry.id;
 
     if (optEntry.hasArg) {
-        if (args.c >= *counter + 1) {
-            res.optArg = args.v[*counter];
-            (*counter)++; /* skip option */
+        if (args.c >= counter + 1) {
+            res.arg = args.v[counter];
+            counter++; /* skip option */
         } else {
             res.errCode = OPT_ERR_EXPECTED_SUBOPT;
             ER_AppendReport(&res.errReport, "option '%s' requires an argument", arg);
         }
     }
+
+    *pCounter = counter;
+
     return res;
 }
 

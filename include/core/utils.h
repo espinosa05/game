@@ -19,8 +19,9 @@
 #   include "macos_utils.h"
 #endif
 
+#define __NULLABLE__
 
-#define NULLABLE        /* empty */
+#define __INIT_FUNCTION__ /* empty attribute (more for book keeping) */
 
 #define STR_SYM(sym)    #sym
 #define TODO(...)       LOG_T("TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
@@ -76,5 +77,6 @@
 #   undef ASSERT(...)
 #   define ASSERT(a, ...) MACRO_START MACRO_END
 #endif /* CORE_RELEASE */
+
 
 #endif /* __UTILS_H__ */

@@ -42,7 +42,7 @@ typedef struct  {
     /* error message */
     ErrorReport errReport;
     /* the argument of the option, if supported */
-    char *optArg;
+    char *arg;
     /* if the argument was supplied earlier, the index is stored here */
     sz lastIndex;
     /* last cli parameter index */
@@ -54,7 +54,7 @@ typedef struct  {
     .id = -1,                           \
     .errCode = -1,                      \
     .errReport = {0},                   \
-    .optArg = NULL,                     \
+    .arg = NULL,                        \
     .lastIndex = -1,                    \
     .optInd = -1                        \
 }
@@ -68,7 +68,7 @@ typedef struct  {
     .desc = NULL,                   \
 }
 
-CLI_OptResult CLI_Getopt(const CLI_Opt optArr[],
+CLI_OptResult CLI_GetOpt(const CLI_Opt optArr[],
                 usz nOpts, usz *pCounter, CLI_Args args);
 
 #endif /* __CORE_CLI_H__ */

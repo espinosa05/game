@@ -5,28 +5,18 @@
 
 #define OUT_DIR "out/"
 
-#ifdef _WIN32
-#   error "windows not supported yet!"
-#   define PLATFORM_LIBRARY_LINKS
-#else
-#   define PLATFORM_LIBRARY_LINKS "-lvulkan", "-lX11"
-#endif /* _WIN32 */
-
-#define LIBRARY_LINKS PLATFORM_LIBRARY_LINKS
-
 #define CC      "gcc"
-#define CFLAGS  "-fPIC", "-I../../include", LIBRARY_LINKS, "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
+#define CFLAGS  "-I../../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
 #define LIBNAME "core"
+
+#define AR      "ar"
+#define ARFLAGS "rcs"
 
 #ifdef LIB_SHARED
 #   define LIB_EXT ".so"
 #else
 #   define LIB_EXT ".a"
 #endif /* LIB_SHARED */
-
-
-#define LD      "ld"
-#define LDFLAGS "-static"
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
@@ -113,8 +103,8 @@ void build_library(void)
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
 
-    /* finally, link object files into a shared library */
-    nob_cmd_append(&comp_cmd, LD, LDFLAGS, "-o", OUT_DIR "lib" LIBNAME LIB_EXT);
+    /* finally, link object files into a static archive */
+    nob_cmd_append(&comp_cmd, AR, ARFLAGS, OUT_DIR "lib" LIBNAME LIB_EXT);
     for (int i = 0; i < obj_files.count; ++i) {
         nob_cmd_append(&comp_cmd, obj_files.items[i]);
     }

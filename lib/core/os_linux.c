@@ -1,9 +1,12 @@
 #include <core/os.h>
 #include <core/os_streams.h>
+#include <core/os_file.h>
+#include <core/os_socket.h>
 
 #include <core/utils.h>
 #include <core/types.h>
 #include <core/memory.h>
+#include <core/cstd.h>
 #include <core/linux.h>
 
 
@@ -17,6 +20,17 @@ static OS_StreamStatus OpenTCPSocketStream(OS_Stream *stream, const OS_SocketTCP
 static OS_StreamStatus OpenIPCSocketStream(OS_Stream *stream, const OS_SocketIPCCreateInfo *info);
 static OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunction, usz errnoVal);
 /* static function declaration end */
+
+/* global data start */
+OS_File *OS_STDIN;
+OS_File *OS_STDOUT;
+OS_File *OS_STDERR;
+
+static OS_File __OS_StdIn;
+static OS_File __OS_StdOut;
+static OS_File __OS_StdErr;
+/* global data end */
+
 
 OS_WmStatus OS_WmInit(OS_WindowManager *wm)
 {
@@ -100,7 +114,7 @@ OS_ThreadStatus OS_ThreadSpawn(OS_Thread *thr, OS_ThreadFunction func, void *arg
     stackBuffer = mmap(NULL, stackSize.rlim_cur, PROT_READ | PROT_WRITE,
                        MAP_GROWSDOWN | MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
 
-    __TMP_ASSERT(stackBuffer != MAP_FAILED);
+    ASSERT_RT(stackBuffer != MAP_FAILED, "failed to allocate stack for new process");
 
     cloneArgs.flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND;
     cloneArgs.exit_signal = SIGCHLD;
@@ -279,47 +293,58 @@ OS_StreamStatus OS_StreamPrintf(OS_Stream *stream, const char *fmt, ...)
     TODO("implement Variadic I/O functions");
     char *buffer = NULL;
     VA_Args args;
+    usz messageLength;
 
     VA_Start(args, fmt);
-    CStr_FormatAllocVariadic(&buffer, fmt, args);
-    usz size = CStr_Length(buffer);
-
-    OS_StreamWrite(stream, buffer, size);
+    CStr_FormatAllocVariadic(&buffer, fmt, args, &messageLength);
+    OS_StreamWrite(stream, buffer, messageLength, messageLength);
 
     M_Free(buffer);
 
     return OS_STREAM_STATUS_SUCCESS;
 }
 
+enum { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
+void OS_FileInitProcIOHandles(void)
+    __INIT_FUNCTION__
+{
+    __OS_StdIn  = OS_LINUX_STDIN;
+    __OS_StdOut = OS_LINUX_STDOUT;
+    __OS_StdErr = OS_LINUX_STDERR;
+
+    OS_STDIN    = &__OS_StdIn;
+    OS_STDOUT   = &__OS_StdOut;
+    OS_STDERR   = &__OS_StdErr;
+}
+
 void OS_FileOpen(OS_File *f, const OS_FileCreateInfo *info)
 {
     TODO("error handling");
     *f = open(info->path, info->perm);
-    ASSERT(OS_LINUX_SYSCALL_SUCCESS(*f), "syscall open failed!");
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(*f), "syscall open failed!");
 }
 
 void OS_FileCreate(OS_File *f, const OS_FileCreateInfo *info)
 {
     TODO("error handling");
-    info->perm |= O_CREAT;
-    *f = open(info->path, info, S_IWUSR);
-    ASSERT(OS_LINUX_SYSCALL_SUCCESS(*f), "open syscall failed!");
+    u32 fdPerm = info->perm | O_CREAT; /* the user does not need to know this happens */
+    *f = open(info->path, fdPerm, S_IWUSR);
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(*f), "open syscall failed!");
 }
 
 void OS_FileRead(const OS_File *f, void *buffer, const usz bufferSize, const usz bytes)
 {
     TODO("error handling");
-    usz st = read(*f, buffer, size);
+    ASSERT(bytes <= bufferSize, "out of bounds read!");
+    sz st = read(*f, buffer, bytes);
     ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "read syscall failed!");
 }
 
 void OS_FileWrite(const OS_File *f, const void *buffer, const usz bufferSize, const usz bytes)
 {
     TODO("error handling!");
-    if (bytes > bufferSize)
-        OS_FILE_STATUS_
-
-    usz st = write(*f, buffer, bytes);
+    ASSERT(bytes <= bufferSize, "out of bounds write!");
+    sz st = write(*f, buffer, bytes);
     ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
 }
 
@@ -327,60 +352,27 @@ void OS_FilePrintf(const OS_File *f, const char *fmt, ...)
 {
     char *msg;
     VA_Args args;
+    usz msgLength;
 
     VA_Start(args, fmt);
-    CStr_FormatAllocVariadic(&msg, fmt, args);
-    OS_FileWrite(msg);
+    CStr_FormatAllocVariadic(&msg, fmt, args, &msgLength);
+    OS_FileWrite(f, msg, msgLength, msgLength);
     M_Free(msg);
 }
 
 void OS_FileClose(OS_File *f)
 {
     TODO("error handling");
-    usz st = close(*f);
+    sz st = close(*f);
     ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall close failed!");
-    *f = NULL;
+    *f = OS_FILE_INVALID;
 }
 
-void OS_FileFlush(OS_File *f)
+void OS_FileFlush(const OS_File *f)
 {
     IMPL();
     UNUSED(f);
 }
-
-enum socketStatusCodes {
-    OS_SOCKET_STATUS_SUCCESS = 0,
-    OS_SOCKET_STATUS_HOST_OUT_OF_FDS,
-    OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS,
-    OS_SOCKET_STATUS_PROCESS_OUT_OF_SOCKETS,
-    OS_SOCKET_STATUS_HOST_OUT_OF_SOCKETS,
-    OS_SOCKET_STATUS_HOST_OUT_OF_MEMORY,
-    OS_SOCKET_STATUS_PROTECTED_ADDRESS,
-    OS_SOCKET_STATUS_ADDRESS_AND_PORT_IN_USE,
-    OS_SOCKET_STATUS_INVALID_SOCKET,
-    OS_SOCKET_STATUS_SOCKET_ALREADY_BOUND,
-    OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE,
-    OS_SOCKET_STATUS_CONNECTION_WAS_ABORTED,
-    OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED,
-    OS_SOCKET_STATUS_SOCKET_IS_NOT_LISTENING,
-    OS_SOCKET_STATUS_BLOCKED_BY_FIREWALL,
-    OS_SOCKET_STATUS_PREVIOUS_CONNECT_INCOMPLETE,
-    OS_SOCKET_STATUS_SERVICE_NOT_AVAILABLE,
-    OS_SOCKET_STATUS_SOCKET_IS_NOT_CONNECTED,
-    OS_SOCKET_STATUS_SOCKET_IS_ALREADY_CONNECTED,
-    OS_SOCKET_STATUS_CONNECTION_TIMEOUT,
-    OS_SOCKET_STATUS_RECEIVE_TIMEOUT,
-    OS_SOCKET_STATUS_CLOSE_GOT_INTERRUPTED_BY_OS,
-    OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR,
-    OS_SOCKET_STATUS_PEER_RESET_CONNECTION,
-    OS_SOCKET_STATUS_SEND_GOT_INTERRUPTED_BY_OS,
-    OS_SOCKET_STATUS_NO_TARGET_SPECIFIED,
-    OS_SOCKET_STATUS_PEER_DOWN,
-    OS_SOCKET_STATUS_RECV_GOT_INTERRUPTED_BY_OS,
-
-    OS_SOCKET_STATUS_UNKNOWN,
-    OS_SOCKET_STATUS_COUNT,
-};
 
 enum socketFunctions {
     SOCK_FN_SOCKET,
@@ -408,40 +400,42 @@ enum socketFunctions {
     SOCK_FN_ACCEPT4,
 };
 
+#define SOCKOPT_ENABLE &(int) {1}
+#define SOCKOPT_DISABLE &(int) {0}
 OS_SocketStatus OS_SocketEnableSockOpt(const OS_Socket *sock, sz sockOpt)
 {
-    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_ENABLE);
+    sz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_ENABLE, sizeof(int));
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
 }
 
 OS_SocketStatus OS_SocketDisableSockOpt(const OS_Socket *sock, sz sockOpt)
 {
-    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_DISABLE, &(socklen_t) {sizeof(int)});
+    sz st = setsockopt(*sock, SOL_SOCKET, sockOpt, SOCKOPT_DISABLE, (socklen_t) {sizeof(int)});
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
 }
 
 OS_SocketStatus OS_SocketGetSockOpt(const OS_Socket *sock, sz sockOpt, sz *value)
 {
-    usz st = getsockopt(*sock, SOL_SOCKET, sockOpt, value, &(socklen_t) {sizeof(value)});
+    sz st = getsockopt(*sock, SOL_SOCKET, sockOpt, value, &(socklen_t) {sizeof(value)});
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_GETSOCKOPT, errno);
 }
 
 OS_SocketStatus OS_SocketSetSockObj(const OS_Socket *sock, sz sockOpt, const void *sockObj, usz size)
 {
-    usz st = setsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, size);
+    sz st = setsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, size);
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SETSOCKOPT, errno);
 }
 
 OS_SocketStatus OS_SocketGetSockObj(const OS_Socket *sock, sz sockOpt, void *sockObj, usz size)
 {
-    usz st = getsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, size);
+    sz st = getsockopt(*sock, SOL_SOCKET, sockOpt, sockObj, &(socklen_t) {size});
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_GETSOCKOPT, errno);
 }
 
-OS_SocketStatus OS_SocketCreateTCPSocket(const OS_Socket *sock, const OS_SocketTCPCreateInfo *info)
+OS_SocketStatus OS_SocketCreateTCPSocket(OS_Socket *sock, const OS_SocketTCPCreateInfo *info)
 {
     struct sockaddr_in socketAddress = {0};
-    usz st = 0;
+    sz st = 0;
 
     st = socket(AF_INET, SOCK_STREAM, 0);
     if (!OS_LINUX_SYSCALL_SUCCESS(st))
@@ -449,19 +443,19 @@ OS_SocketStatus OS_SocketCreateTCPSocket(const OS_Socket *sock, const OS_SocketT
 
     *sock = st;
     socketAddress.sin_family        = AF_INET;
-    socketAddress.sin_addr.s_addr   = info.netAddr.ipv4;
-    socketAddress.sin_port          = info.netAddr.port;
+    socketAddress.sin_addr.s_addr   = info->netAddr->ipv4;
+    socketAddress.sin_port          = info->netAddr->port;
 
     st = bind(*sock, (struct sockaddr *)&socketAddress, sizeof(socketAddress));
     if (!OS_LINUX_SYSCALL_SUCCESS(st))
         return OS_SocketErrnoCodeToStatus(st, SOCK_FN_BIND, errno);
 
-    st = listen(*sock, info.queueLength)
+    st = listen(*sock, info->queueLength);
 
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_LISTEN, errno);
 }
 
-OS_SocketStatus OS_SocketCreateIPCSocket(const OS_Socket *sock, const OS_SOcketIPCCreateInfo *info)
+OS_SocketStatus OS_SocketCreateIPCSocket(OS_Socket *sock, const OS_SocketIPCCreateInfo *info)
 {
     UNUSED(sock);
     UNUSED(info);
@@ -477,15 +471,15 @@ OS_SocketStatus OS_SocketBindPath(const OS_Socket *sock)
 
 OS_SocketStatus OS_SocketAccept(const OS_Socket *server, OS_Socket *client, OS_NetworkAddress *address)
 {
-    usz st = 0;
+    sz st = 0;
     struct sockaddr_in socketAddress = {0};
     st = accept(*server, (struct sockaddr *)&socketAddress, &(socklen_t) {sizeof(socketAddress)});
     if (!OS_LINUX_SYSCALL_SUCCESS(st))
         return OS_SocketErrnoCodeToStatus(st, SOCK_FN_ACCEPT, errno);
 
     *client = st;
-    address.ipv4 = socketAddress.sin_addr.s_addr;
-    address.port = socketAddress.sin_port;
+    address->ipv4 = socketAddress.sin_addr.s_addr;
+    address->port = socketAddress.sin_port;
 
     return OS_SOCKET_STATUS_SUCCESS;
 }
@@ -493,52 +487,55 @@ OS_SocketStatus OS_SocketAccept(const OS_Socket *server, OS_Socket *client, OS_N
 OS_SocketStatus OS_SocketConnect(const OS_Socket *client, OS_Socket *server, const OS_NetworkAddress *address)
 {
     usz st = 0;
-    struct sockaddr_in socketAddress = {0};
+    struct sockaddr_in socketAddress = {
+        .sin_addr.s_addr = address->ipv4,
+        .sin_port = address->port,
+    };
 
     st = connect(*client, (struct sockaddr *)&socketAddress, sizeof(socketAddress));
+    *server = st;
 
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_CONNECT, errno);
 }
 
 OS_SocketStatus OS_SocketClose(const OS_Socket *sock)
 {
-    usz st = 0;
+    sz st = 0;
 
     st = close(*sock);
 
-    return OS_SocketErrnoCodeToStatus(st);
+    return OS_SocketErrnoCodeToStatus(st, SOCK_FN_CLOSE, errno);
 }
 
-OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock)
+OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock, usz how)
 {
-    usz st = 0;
-
-    st = shutdown(*sock);
+    sz st = 0;
+    st = shutdown(*sock, how);
 
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SHUTDOWN, errno);
 }
 
 OS_SocketStatus OS_SocketReceiveData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags)
 {
-    usz st = 0;
+    sz st = 0;
 
     if (size > bufferSize) {
         return OS_SOCKET_STATUS_OUT_OF_BOUNDS_READ;
     }
 
-    st = recv(*sock, size, flags);
+    st = recv(*sock, buffer, size, flags);
 
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_RECV, errno);
 }
 
 OS_SocketStatus OS_SocketSendData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags)
 {
-    usz st = 0;
+    sz st = 0;
 
     if (size > bufferSize) {
         return OS_SOCKET_STATUS_OUT_OF_BOUNDS_WRITE;
     }
-    st = send(*sock, size, flags);
+    st = send(*sock, buffer, size, flags);
 
     return OS_SocketErrnoCodeToStatus(st, SOCK_FN_SEND, errno);
 }
@@ -699,7 +696,7 @@ static char *g_OS_SocketStatusCodeStrings[] = {
     ENUM_STR_ENTRY(OS_SOCKET_STATUS_UNKNOWN),
 };
 
-static char *OS_SocketStringStatus(usz code)
+char *OS_SocketStringStatus(usz code)
 {
     if (code > OS_SOCKET_STATUS_UNKNOWN)
         code = OS_SOCKET_STATUS_UNKNOWN;
@@ -727,13 +724,13 @@ static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileCreateInfo
 
 static OS_StreamStatus OpenTCPSocketStream(OS_Stream *stream, const OS_SocketTCPCreateInfo *info)
 {
-    OS_SocketCreateTCPSocket(&stream->socket);
+    OS_SocketCreateTCPSocket(&stream->socket, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
 static OS_StreamStatus OpenIPCSocketStream(OS_Stream *stream, const OS_SocketIPCCreateInfo *info)
 {
-    OS_SocketCreateTCPSocket(&stream->socket);
+    OS_SocketCreateIPCSocket(&stream->socket, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 

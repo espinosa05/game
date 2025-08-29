@@ -9,12 +9,12 @@
 
 #define GAME_DIR "game/"
 
+#define LINKS   "-lcore", "-lnet", "-lX11", "-lvulkan"
+
 #define CC      "gcc"
-#define CFLAGS  "-Wall", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-c", "-I" INC_DIR
+#define CFLAGS  "-Wall", "-ggdb", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-I" INC_DIR
 #define PROGNAME "game"
 
-#define LD      "ld"
-#define LINKS   "-lcore", "-lnet", "-lX11", "-lvulkan"
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
@@ -147,20 +147,28 @@ void build_application()
 
     NOB_ASSERT(nob_set_current_dir(base_dir));
 
-    /* copy the game object files */
-    {
-        Nob_Cmd game_copy_cmd = {0};
-        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "*.o", OUT_DIR);
-        nob_cmd_run_sync(game_copy_cmd);
-    }
-
     nob_temp_reset();
 }
 
 void link_executable()
 {
+    /* copy the game object files */
+    {
+        Nob_Cmd game_copy_cmd = {0};
+        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "game.o", OUT_DIR);
+        nob_cmd_run_sync_and_reset(&game_copy_cmd);
+
+        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "start.o", OUT_DIR);
+        nob_cmd_run_sync(game_copy_cmd);
+    }
+
     Nob_Cmd game_link_cmd = {0};
-    nob_cmd_append(&game_link_cmd, LD, );
+    nob_cmd_append(&game_link_cmd, CC, CFLAGS);
+    nob_cmd_append(&game_link_cmd, OUT_DIR "game.o");
+    nob_cmd_append(&game_link_cmd, OUT_DIR "start.o");
+    nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
+    nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
+    nob_cmd_run_sync(game_link_cmd);
 }
 
 void build_project(void)

@@ -14,8 +14,9 @@ enum filePerm {
     FPERM_READ_AND_WRITE = O_RDWR,
 };
 
-#elif defined(PLATFORM_WINDOWS)
+#define OS_FILE_INVALID ((int) -1)
 
+#elif defined(PLATFORM_WINDOWS)
 typedef HANDLE OS_File;
 typedef DWORD OS_FilePerm;
 enum filePerm {
@@ -23,6 +24,8 @@ enum filePerm {
     FPERM_WRITE = GENERIC_WRITE,
     FPERM_READ_AND_WRITE = GENERIC_READ | GENERIC_WRITE,
 };
+
+#define OS_FILE_INVALID
 
 #endif
 
@@ -36,7 +39,7 @@ extern OS_File *OS_STDOUT;
 extern OS_File *OS_STDERR;
 
 void OS_FileOpen(OS_File *f, const OS_FileCreateInfo *info);
-void OS_FileCreate(const OS_File *f, const OS_FileCreateInfo *info);
+void OS_FileCreate(OS_File *f, const OS_FileCreateInfo *info);
 void OS_FileRead(const OS_File *f, void *buffer, const usz bufferSize, const usz bytes);
 void OS_FileWrite(const OS_File *f, const void *buffer, const usz bufferSize, const usz bytes);
 void OS_FilePrintf(const OS_File *f, const char *fmt, ...);

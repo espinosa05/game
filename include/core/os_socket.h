@@ -11,6 +11,11 @@ typedef struct {
 
 #if defined(PLATFORM_LINUX)
 typedef int OS_Socket;
+enum {
+    OS_SOCKET_SHUTDOWN_READ = SHUT_RD,
+    OS_SOCKET_SHUTDOWN_WRITE = SHUT_WR,
+    OS_SOCKET_SHUTDOWN_READ_AND_WRITE = SHUT_RDWR,
+};
 #elif defined(PLATFORM_WINDOWS)
 typedef SOCKET OS_Socket;
 #else
@@ -86,7 +91,7 @@ OS_SocketStatus OS_SocketAccept(const OS_Socket *server, OS_Socket *client, OS_N
 OS_SocketStatus OS_SocketConnect(const OS_Socket *client, OS_Socket *server, const OS_NetworkAddress *address);
 
 OS_SocketStatus OS_SocketClose(const OS_Socket *sock);
-OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock);
+OS_SocketStatus OS_SocketShutdown(const OS_Socket *sock, usz how);
 
 OS_SocketStatus OS_SocketReceiveData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags);
 OS_SocketStatus OS_SocketSendData(const OS_Socket *sock, char *buffer, const usz bufferSize, usz size, usz flags);

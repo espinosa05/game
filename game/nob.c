@@ -15,7 +15,7 @@
 #define LIBRARY_LINKS PLATFORM_LIBRARY_LINKS
 
 #define CC      "gcc"
-#define CFLAGS  "-fPIC", "-I../include", LIBRARY_LINKS, "-Wall", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-c"
+#define CFLAGS  "-I../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
 #define LIBNAME "core"
 
 #define LD      "ld"
@@ -24,8 +24,7 @@
 /* IGNORE LIST */
 static const char *ignore_list[] = {
     __FILE__, /* obviusly, we disregard this very file */
-    "native_ui_linux.c",
-    "thread_test.c",
+    "cdstruct.c",
 };
 
 #define MIN_FILENAME_LEN 1
@@ -105,14 +104,6 @@ void build_library(void)
         nob_da_append(&comp_threads, nob_cmd_run_async_and_reset(&comp_cmd));
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
-
-    /* finally, link object files into a shared library */
-    nob_cmd_append(&comp_cmd, LD, LDFLAGS, "-o", OUT_DIR "lib" LIBNAME ".so");
-    for (int i = 0; i < obj_files.count; ++i) {
-        nob_cmd_append(&comp_cmd, obj_files.items[i]);
-    }
-
-    nob_cmd_run_sync(comp_cmd);
 }
 
 int main(int argc, char **argv)

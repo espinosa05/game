@@ -6,16 +6,16 @@
 #define CSTRUCT_ENTRY(e)   e
 #define DSTRUCT_ENTRY(e)   e
 
-#define CSTRUCT()                                               \
-    do {                                                        \
-        for (int i = 0; i < CDSTRUCT_ARRAY_SIZE(cstruct); ++i)  \
-            cstruct[i]();                                       \
+#define CSTRUCT()                                                   \
+    do {                                                            \
+        for (unsigned i = 0; i < CDSTRUCT_ARRAY_SIZE(cstruct); ++i) \
+            cstruct[i]();                                           \
     } while (0)
 
-#define DSTRUCT()                                               \
-    do {                                                        \
-        for (int i = 0; i < CDSTRUCT_ARRAY_SIZE(cstruct); ++i)  \
-            dstruct[i]();                                       \
+#define DSTRUCT()                                                   \
+    do {                                                            \
+        for (unsigned i = 0; i < CDSTRUCT_ARRAY_SIZE(cstruct); ++i) \
+            dstruct[i]();                                           \
     } while (0)
 
 
@@ -24,15 +24,13 @@ typedef void (*DStructFunc)(void);
 
 
 /* add your constructor function symbols here */
-DECL_CSTRUCT(DummyConstructor);
-DECL_CSTRUCT(InitGlobalArena);
+DECL_CSTRUCT(OS_FileInitProcIOHandles);
 /* add your destructor function symbols here */
 DECL_DSTRUCT(DummyDestructor);
 
 /* add your constructors to the list */
 CStructFunc cstruct[] = {
-    CSTRUCT_ENTRY(DummyConstructor),
-    CSTRUCT_ENTRY(InitGlobalAerna),
+    CSTRUCT_ENTRY(OS_FileInitProcIOHandles),
 };
 
 /* add your destructors to the list */
