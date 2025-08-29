@@ -19,6 +19,7 @@ static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileCreateInfo
 static OS_StreamStatus OpenTCPSocketStream(OS_Stream *stream, const OS_SocketTCPCreateInfo *info);
 static OS_StreamStatus OpenIPCSocketStream(OS_Stream *stream, const OS_SocketIPCCreateInfo *info);
 static OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunction, usz errnoVal);
+static void OS_FileInitProcIOHandles(void) __FUNC_ATTR_CONSTRUCTOR__;
 /* static function declaration end */
 
 /* global data start */
@@ -305,8 +306,7 @@ OS_StreamStatus OS_StreamPrintf(OS_Stream *stream, const char *fmt, ...)
 }
 
 enum { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
-void OS_FileInitProcIOHandles(void)
-    __INIT_FUNCTION__
+static void OS_FileInitProcIOHandles(void)
 {
     __OS_StdIn  = OS_LINUX_STDIN;
     __OS_StdOut = OS_LINUX_STDOUT;

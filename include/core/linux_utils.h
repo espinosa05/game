@@ -12,6 +12,8 @@
 #define INLINE          __attribute__((always_inline)) inline
 //#define PRINTF(f, as)   __attribute__((printf(f, as)))
 
+#define __FUNC_ATTR_CONSTRUCTOR__   __attribute__((constructor))
+
 #define getErrnoStr(v) strerror(v)
 #define BUILTIN_UNREACHABLE() __builtin_unreachable()
 
