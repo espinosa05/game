@@ -12,7 +12,7 @@
 #define LINKS   "-lcore", "-lnet", "-lX11", "-lvulkan"
 
 #define CC      "gcc"
-#define CFLAGS  "-Wall", "-ggdb", "-std=gnu99", "-Wextra", "-pedantic", "-Werror", "-I" INC_DIR
+#define CFLAGS   
 #define PROGNAME "game"
 
 
@@ -218,7 +218,7 @@ void link_executable()
     }
 
     Nob_Cmd game_link_cmd = {0};
-    nob_cmd_append(&game_link_cmd, CC, CFLAGS);
+    nob_cmd_append(&game_link_cmd, CC);
     nob_cmd_append(&game_link_cmd, OUT_DIR "game.o");
     nob_cmd_append(&game_link_cmd, OUT_DIR "start.o");
     nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
