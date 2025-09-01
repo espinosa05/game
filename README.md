@@ -8,16 +8,18 @@ Compile the build scripts nob.c, game/nob.c and lib/core/nob.c with the followin
 ```bash
 $ cc nob.c -o nob
 ```
-Finally, to build the project execute the following command inside the project root
+# BUILDING THE PROJECT
+To build the project, execute the following command inside the project root
 ```bash
 $ ./nob
 ```
-
-# MISC
-To clean up the project, run:
+# RUNNING THE PROJECT
+To run the project, execute the following command inside the project root
+```bash
+$ ./nob run
+```
+# CLEANING
+To clean the project, execute the following command inside the project root
 ```bash
 $ ./nob clean
 ```
-
-# ADDITIONAL INFO
-The project executable is found in 'out/'
