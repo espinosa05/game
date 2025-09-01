@@ -1,12 +1,9 @@
 # FIRST-TIME SETUP
 This Project uses the 'nob.h' build tool and thus is required to be compiled by hand once!
-After cloning, go into the project directory
+For this, i've provided a small setup script.<br>
+Simply run:
 ```bash
-$ cd [PROJECT_DIRECTORY]
-```
-Compile the build scripts nob.c, game/nob.c and lib/core/nob.c with the following command, respectively:
-```bash
-$ cc nob.c -o nob
+$ ./setup.sh
 ```
 # BUILDING THE PROJECT
 To build the project, execute the following command inside the project root
