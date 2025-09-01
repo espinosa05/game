@@ -20,7 +20,7 @@
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
-    __FILE__, /* obviusly, we disregard this very file */
+    __FILE__, /* obviously, we disregard this very file */
     "native_ui_linux.c",
     "thread_test.c",
 };
