@@ -21,8 +21,6 @@
 /* IGNORE LIST */
 static const char *ignore_list[] = {
     __FILE__, /* obviously, we disregard this very file */
-    "native_ui_linux.c",
-    "thread_test.c",
 };
 
 #define MIN_FILENAME_LEN 1

@@ -24,7 +24,6 @@
 /* IGNORE LIST */
 static const char *ignore_list[] = {
     __FILE__, /* obviously, we disregard this very file */
-    "cdstruct.c",
 };
 
 #define MIN_FILENAME_LEN 1
