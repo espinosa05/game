@@ -25,6 +25,7 @@ before compiling, make sure you have the following dependencies installed:
 - gcc for building (clang support soon)
 - Vulkan-SDK
 - X11 SDK
+<br>
 'nob' is meant to be lightweight and thus does not support automatic dependency management.<br>
 I'm not planing on adding similar features myself.<br>
 
