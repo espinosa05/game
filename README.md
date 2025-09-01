@@ -30,7 +30,9 @@ before compiling, make sure you have the following dependencies installed:
 - X11 SDK
 'nob' is meant to be lightweight and thus does not support automatic dependency management.<br>
 I'm not planing on adding similar features myself.<br>
+
 <br>
+
 Installation with pacman (Arch-based)
 ```bash
 # pacman -S vulkan-headers vulkan-validation-layers
