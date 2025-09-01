@@ -1,3 +1,5 @@
-*out/*
+out/
+game/out/
+lib/core/out/
 *nob.old
 *nob
