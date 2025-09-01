@@ -26,6 +26,12 @@ static const char *lib_names[] = {
     "core",
 };
 
+bool nob_set_current_dir_log(const char *path)
+{
+    nob_log(NOB_INFO, "setting CWD to -> %s", path);
+    return nob_set_current_dir(path);
+}
+
 #define MIN_FILENAME_LEN 1
 /* checks for file extensions */
 bool is_type(char *file, char *type)
@@ -97,20 +103,19 @@ void build_libraries(void)
         Nob_String_Builder lib_dir_path = {0};
         /* we skip hidden files, "." and ".." */
         if (lib_deps.items[i][0] == '.' && nob_get_file_type(lib_deps.items[i]) == NOB_FILE_DIRECTORY) {
-            nob_log(NOB_INFO, "skipping -> %s\n", lib_deps.items[i]);
+            nob_log(NOB_INFO, "skipping -> %s", lib_deps.items[i]);
             continue;
         }
         /* for every path in LIB_DIR, change path and "./nob" */
         nob_sb_appendf(&lib_dir_path, "%s%s", LIB_DIR, lib_deps.items[i]);
         nob_sb_append_null(&lib_dir_path);
-        nob_log(NOB_INFO, "GOING INTO DIRECTORY -> %s\n", lib_dir_path.items);
-        NOB_ASSERT(nob_set_current_dir(lib_dir_path.items));
+        NOB_ASSERT(nob_set_current_dir_log(lib_dir_path.items));
         nob_cmd_append(&build_cmd, "./nob");
         nob_da_append(&build_threads, nob_cmd_run_async_and_reset(&build_cmd));
-        NOB_ASSERT(nob_set_current_dir(base_dir));
+        NOB_ASSERT(nob_set_current_dir_log(base_dir));
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&build_threads));
-    NOB_ASSERT(nob_set_current_dir(base_dir));
+    NOB_ASSERT(nob_set_current_dir_log(base_dir));
     nob_temp_reset();
 
     copy_shared_libraries();
@@ -125,15 +130,11 @@ void clean_libs(void)
     base_dir = nob_get_current_dir_temp();
     NOB_ASSERT(nob_read_entire_dir(LIB_DIR, &lib_deps));
 
-
-    nob_log(NOB_INFO, "lib_deps.count : %d\n", lib_deps.count);
-    abort();
-
     for (int i = 0; i < lib_deps.count; ++i) {
         Nob_String_Builder lib_dir_path = {0};
         /* we skip hidden files, "." and ".." */
         if (lib_deps.items[i][0] == '.' && nob_get_file_type(lib_deps.items[i]) == NOB_FILE_DIRECTORY) {
-            nob_log(NOB_INFO, "skipping -> %s\n", lib_deps.items[i]);
+            nob_log(NOB_INFO, "skipping -> %s", lib_deps.items[i]);
             continue;
         }
         /* for every path in LIB_DIR, change path and "./nob" */
@@ -141,27 +142,24 @@ void clean_libs(void)
         nob_sb_append_null(&lib_dir_path);
 
         /* change path */
-        nob_log(NOB_INFO, "GOING INTO DIRECTORY -> %s\n", lib_dir_path.items);
-        NOB_ASSERT(nob_set_current_dir(lib_dir_path.items));
+        NOB_ASSERT(nob_set_current_dir_log(lib_dir_path.items));
         nob_cmd_append(&clean_cmd, "./nob", "clean");
         nob_cmd_run_sync_and_reset(&clean_cmd);
-        NOB_ASSERT(nob_set_current_dir(base_dir));
+        NOB_ASSERT(nob_set_current_dir_log(base_dir));
     }
 }
 
 void clean_game()
 {
     Nob_Cmd clean_cmd = {0};
-    Nob_File_Paths lib_deps = {0};
     const char *base_dir = NULL;
 
     base_dir = nob_get_current_dir_temp();
-    NOB_ASSERT(nob_read_entire_dir(GAME_DIR, &lib_deps));
-
+    NOB_ASSERT(nob_set_current_dir_log(GAME_DIR));
     nob_cmd_append(&clean_cmd, "./nob", "clean");
     nob_cmd_run_sync_and_reset(&clean_cmd);
 
-    NOB_ASSERT(nob_set_current_dir(base_dir));
+    NOB_ASSERT(nob_set_current_dir_log(base_dir));
 
     nob_temp_reset();
 }
