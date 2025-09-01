@@ -4,7 +4,7 @@ After cloning, go into the project directory
 ```bash
 $ cd [PROJECT_DIRECTORY]
 ```
-Compile the build scripts nob.c, game/nob.c and lib/core/nob.c with the following command:
+Compile the build scripts nob.c, game/nob.c and lib/core/nob.c with the following command, respectively:
 ```bash
 $ cc nob.c -o nob
 ```
