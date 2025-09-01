@@ -35,13 +35,13 @@ I'm not planing on adding similar features myself.<br>
 
 Installation with pacman (Arch-based)
 ```bash
-# pacman -S vulkan-headers vulkan-validation-layers
+# pacman -S vulkan-headers vulkan-validation-layers gcc libx11
 ```
 Installation with apt (Debian-based)
 ```bash
-# apt install libvulkan libvulkan-dev vulkan-validationlayers-dev spriv-tools
+# apt install libvulkan libvulkan-dev vulkan-validationlayers-dev spriv-tools gcc libx11-dev
 ```
 Installation with xbps (Void)
 ```bash
-xbps-install -S vulkan-headers vulkan-validation-layers
+# xbps-install -S vulkan-headers vulkan-validation-layers gcc libX11-devel
 ```
