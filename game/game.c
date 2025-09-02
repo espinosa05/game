@@ -1,6 +1,6 @@
-#define APP_IMPL
 #include "app.h"
 
+/* i know you don't speak Low German, but close enough */
 #define LOW_GERMAN_GREETING "Moin Yan, wo geiht di dat? :^)"
 
 void Main(CLI_Args args)
