@@ -187,7 +187,7 @@ void parse_options(int argc, char **argv)
 
 void build_application()
 {
-    char *base_dir = nob_get_current_dir_temp();
+    const char *base_dir = nob_get_current_dir_temp();
     NOB_ASSERT(nob_set_current_dir(GAME_DIR));
 
     /* build game sources */

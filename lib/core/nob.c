@@ -109,7 +109,7 @@ void build_library(void)
     nob_cmd_append(&comp_cmd, AR, ARFLAGS);
 #endif
 
-    nob_cmd_appen(&comp_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
+    nob_cmd_append(&comp_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
     for (int i = 0; i < obj_files.count; ++i) {
         nob_cmd_append(&comp_cmd, obj_files.items[i]);
     }
