@@ -8,7 +8,7 @@ enum {
     OPT_NO_ERR = 0,
     OPT_ERR_INVALID_OPT,
     OPT_ERR_EXPECTED_SUBOPT,
-    OPT_ERR_INVALID_SHORT_OPT, /* longer than 1 char */
+    OPT_ERR_UNKNOWN,
 };
 
 #define REQUIRED_ARGUMENT 1
@@ -22,7 +22,7 @@ typedef struct {
 
 /* definition for option value */
 typedef struct {
-    u32 id;
+    s32 id;
     /* short option value (E.g.: '-o') */
     char shortOpt;
     /* long option value (E.g.: '--output' */
@@ -36,15 +36,11 @@ typedef struct {
 /* definition for 'CLI_Getopt' result */
 typedef struct  {
     /* unique enum value */
-    u32 id;
+    s32 id;
     /* error code */
     sz errCode;
-    /* error message */
-    ErrorReport errReport;
     /* the argument of the option, if supported */
     char *arg;
-    /* if the argument was supplied earlier, the index is stored here */
-    sz lastIndex;
     /* last cli parameter index */
     sz optInd;
 } CLI_OptResult;
@@ -53,9 +49,7 @@ typedef struct  {
 #define INIT_OPT_RESULT_INVALID {       \
     .id = -1,                           \
     .errCode = -1,                      \
-    .errReport = {0},                   \
     .arg = NULL,                        \
-    .lastIndex = -1,                    \
     .optInd = -1                        \
 }
 
@@ -68,7 +62,12 @@ typedef struct  {
     .desc = NULL,                   \
 }
 
+#define CLI_GETOPT_SUCCESS(opt) (opt.errCode == OPT_NO_ERR)
+
+#define CLI_OPT_NULL_ENTRY 1
 CLI_OptResult CLI_GetOpt(const CLI_Opt optArr[],
                 usz nOpts, usz *pCounter, CLI_Args args);
+
+const char *CLI_GetOptStringError(usz errCode);
 
 #endif /* __CORE_CLI_H__ */

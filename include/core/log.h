@@ -32,9 +32,9 @@
 #define F_LOG(file, ...) OS_FilePrintf(file, __VA_ARGS__)
 #define LOG(...) F_LOG(OS_STDERR, __VA_ARGS__)
 
-#define F_LOG_T(file, color, tag, ...)                                                \
+#define F_LOG_T(file, tag, color, ...)                                                \
     MACRO_START                                                                       \
-        F_LOG(file, "[" color tag ANSI_COLOR_DEFAULT "] [" LOC_FMT "] : ", LOC_ARG);  \
+        F_LOG(file, "[" color tag ANSI_COLOR_DEFAULT "][" LOC_FMT "]\t: ", LOC_ARG);  \
         F_LOG(file, __VA_ARGS__);                                                     \
         F_LOG(file, "\n");                                                            \
     MACRO_END
@@ -47,9 +47,9 @@
 #define ERROR_LOG_STR(...) CStr_Format((char[MAX_LOG_LINE_LENGTH]) {0}, MAX_LOG_LINE_LENGTH, __VA_ARGS__)
 
 /* not sure if scoping really helps here */
-#define INFO_LOG(...)   MACRO_START F_LOG(OS_STDERR, INFO_LOG_STR(__VA_ARGS__)); MACRO_END
-#define WARN_LOG(...)   MACRO_START F_LOG(OS_STDERR, WARN_LOG_STR(__VA_ARGS__)); MACRO_END
-#define ERROR_LOG(...)  MACRO_START F_LOG(OS_STDERR, ERROR_LOG_STR(__VA_ARGS__)); MACRO_END
+#define INFO_LOG(...)   MACRO_START F_LOG_T(OS_STDERR, "INFO", ANSI_COLOR_BLUE, __VA_ARGS__); MACRO_END
+#define WARN_LOG(...)   MACRO_START F_LOG_T(OS_STDERR, "WARNING", ANSI_COLOR_YELLOW, __VA_ARGS__); MACRO_END
+#define ERROR_LOG(...)  MACRO_START F_LOG_T(OS_STDERR, "ERROR", ANSI_COLOR_RED, __VA_ARGS__); MACRO_END
 
 
 #endif /* __CORE_LOG_H__ */

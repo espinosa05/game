@@ -44,7 +44,7 @@ static void GetAppArena(M_Arena **arena)
     static u8 appArenaBuffer[2*MB_SIZE];
     static M_Arena appArena = {0};
     static b32 onceFlag = FALSE;
-    ASSERT_RT(onceFlag, "The function was meant to be called once!");
+    ASSERT_RT(onceFlag == FALSE, "The function was meant to be called once!");
 
     M_ArenaCreateInfo appArenaInfo = {
         .external   = TRUE,
@@ -57,17 +57,14 @@ static void GetAppArena(M_Arena **arena)
     onceFlag = TRUE;
 }
 
-#define NULL_ENTRY 1
 static void PrintOptions(const CLI_Opt *opts, usz count)
 {
-    count += NULL_ENTRY;
-    for (usz i = 0; i < count; ++i) {
+    for (usz i = 0; i < count - CLI_OPT_NULL_ENTRY; ++i) {
         OS_FilePrintf(OS_STDOUT, "-%c, --%s: %s\n", opts[i].shortOpt,
                                                     opts[i].longOpt,
                                                     opts[i].desc);
     }
 }
-#undef NULL_ENTRY
 
 enum {OPT_HELP, OPT_CONF, OPT_WINR,};
 static void ParseCliArgs(App_Config *conf, const CLI_Args args)
@@ -76,15 +73,15 @@ static void ParseCliArgs(App_Config *conf, const CLI_Args args)
         {OPT_HELP, 'h', "help",     NO_ARGUMENT,        "prints this screen",},
         {OPT_CONF, 'c', "config",   REQUIRED_ARGUMENT,  "sets a custom config path: '-c CONFIG_FILE', '--config CONFIG_FILE'",},
         {OPT_WINR, 'w', "winres",   REQUIRED_ARGUMENT,  "sets a custom resolution: '-w WIDTHxHEIGHT', '--winres WIDTHxHEIGHT', "
-                                                        "'--winsize help' to get a list of supported resolutions"},
+                                                        "'--winres help' to get a list of supported resolutions"},
         {0},
     };
 
-    for (usz i = 0; i < args.c; ) {
+    for (usz i = 1; i < args.c; ) {
         CLI_OptResult option = {0};
         option = CLI_GetOpt(cliOptions, ARRAY_SIZE(cliOptions), &i, args);
-        ASSERT_RT(0 == option.errCode, "failed to parse cli argument '"STR_FMT"'("SZ_FMT"): "STR_FMT,
-                                    args.v[i], option.errCode, option.errReport.rString);
+        ASSERT_RT(CLI_GETOPT_SUCCESS(option), "failed to parse cli argument '"STR_FMT"'("SZ_FMT"): "STR_FMT,
+                                              args.v[option.optInd], option.errCode, CLI_GetOptStringError(option.errCode));
         switch (option.id) {
         case OPT_HELP:
             PrintOptions(cliOptions, ARRAY_SIZE(cliOptions));

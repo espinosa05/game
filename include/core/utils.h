@@ -24,14 +24,14 @@
 #define __INIT_FUNCTION__ /* empty attribute (more for book keeping) */
 
 #define STR_SYM(sym)    #sym
-#define TODO(...)       LOG_T("TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
+#define TODO(...)       F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
 #define IMPL()          TODO("IMPLEMENT FUNCTION")
 #define ARRAY_SIZE(a)   (sizeof(a)/sizeof(*a))
 #define ABORT()         abort()
 
 #define UNUSED(v)                                               \
     MACRO_START                                                 \
-        LOG_T("UNUSED", ANSI_COLOR_MAGENTA, "variable -> %s");  \
+        F_LOG_T(OS_STDERR, "UNUSED", ANSI_COLOR_MAGENTA, #v);   \
         (void)(v);                                              \
     MACRO_END
 
@@ -40,10 +40,10 @@
 #define __TMP_ASSERT(a)                                                         \
     MACRO_START                                                                 \
         if (UNLIKELY(!(a))) {                                                   \
-            LOG_T("TODO", ANSI_COLOR_RED,                                       \
+            F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_RED,                          \
                           "temporary assertion '"#a"' failed!\t");              \
-            LOG("make sure to implement proper error handling for this one!!"); \
-            LOG("\n");                                                          \
+            F_LOG(OS_STDERR, "make sure to implement proper error handling for this one!!"); \
+            F_LOG(OS_STDERR, "\n");                                             \
             ABORT();                                                            \
         }                                                                       \
     MACRO_END
@@ -51,7 +51,7 @@
 #define UNREACHABLE()                                           \
     MACRO_START                                                 \
         BUILTIN_UNREACHABLE();                                  \
-        LOG_T("UNREACHABLE", ANSI_COLOR_RED, LOC_FMT, LOC_ARG); \
+        F_LOG_T(OS_STDERR, "UNREACHABLE", ANSI_COLOR_RED, LOC_FMT, LOC_ARG); \
         ABORT();                                                \
     MACRO_END
 
