@@ -25,14 +25,14 @@ static const char *ignore_list[] = {
 
 #define MIN_FILENAME_LEN 1
 /* checks for file extensions */
-bool is_type(char *file, char *type)
+bool is_type(const char *file, const char *type)
 {
     int type_len = strlen(type);
     int file_len = strlen(file);
     if (type_len + 1 + MIN_FILENAME_LEN > file_len)
         return false;
 
-    char *ext = &file[file_len-type_len];
+    const char *ext = &file[file_len-type_len];
     if (ext[-1] != '.')
         return false;
 
@@ -40,7 +40,7 @@ bool is_type(char *file, char *type)
 }
 
 /* check if file path is in ignore list */
-bool is_ignored(char *file)
+bool is_ignored(const char *file)
 {
     for (int i = 0; i < NOB_ARRAY_LEN(ignore_list); ++i) {
         if (0 == strcmp(file, ignore_list[i]))
@@ -50,7 +50,7 @@ bool is_ignored(char *file)
     return false;
 }
 
-const char *src_path_to_obj_path(char *c_file)
+const char *src_path_to_obj_path(const char *c_file)
 {
     char *o_file = NULL;
     asprintf(&o_file, OUT_DIR"%.*s.o", strlen(c_file)-2, c_file);
@@ -101,8 +101,15 @@ void build_library(void)
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
 
+#ifdef LIB_SHARED
+    /* finally, link object files into a shared object */
+    nob_cmd_append(&comp_cmd, LD, LDFLAGS);
+#else
     /* finally, link object files into a static archive */
-    nob_cmd_append(&comp_cmd, AR, ARFLAGS, OUT_DIR "lib" LIBNAME LIB_EXT);
+    nob_cmd_append(&comp_cmd, AR, ARFLAGS);
+#endif
+
+    nob_cmd_appen(&comp_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
     for (int i = 0; i < obj_files.count; ++i) {
         nob_cmd_append(&comp_cmd, obj_files.items[i]);
     }
