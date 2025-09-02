@@ -25,6 +25,9 @@ CLI_OptResult CLI_GetOpt(const CLI_Opt optArr[], usz nOpts, usz *pCounter, CLI_A
     ASSERT_RT(args.c >= counter,
               "index not inside argument range! (%d)", counter);
 
+    if (counter == 0) /* skip argv[0] */
+        counter = 1;
+
     res.optInd = counter;
     arg = args.v[counter];
 

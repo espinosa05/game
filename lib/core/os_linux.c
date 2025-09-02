@@ -342,7 +342,6 @@ void OS_FileRead(const OS_File *f, void *buffer, const usz bufferSize, const usz
 
 void OS_FileWrite(const OS_File *f, const void *buffer, const usz bufferSize, const usz bytes)
 {
-    TODO("error handling!");
     ASSERT(bytes <= bufferSize, "out of bounds write!");
     sz st = write(*f, buffer, bytes);
     ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
