@@ -25,6 +25,8 @@ static const char *lib_names[] = {
     "core",
 };
 
+static bool run_project_executable;
+
 bool nob_set_current_dir_log(const char *path)
 {
     nob_log(NOB_INFO, "setting CWD to -> %s", path);
@@ -179,6 +181,8 @@ void parse_options(int argc, char **argv)
     if (IS_ARG("clean", *argv)) {
         clean_project();
         exit(EXIT_SUCCESS);
+    } else if (IS_ARG("run", *argv)) {
+        run_project_executable = true;
     } else {
         nob_log(NOB_ERROR, "%s: no such target", *argv);
         exit(EXIT_FAILURE);
@@ -242,9 +246,14 @@ void run_project(void)
 int main(int argc, char **argv)
 {
     NOB_GO_REBUILD_URSELF(argc, argv);
+
+    run_project_executable = false;
     parse_options(argc, argv);
     build_project();
 
+    if (run_project_executable) {
+        run_project();
+    }
     return EXIT_SUCCESS;
 }
 
