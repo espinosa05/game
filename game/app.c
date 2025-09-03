@@ -16,13 +16,12 @@ void App_Init(App_Context *app, const App_ContextCreateInfo *info)
     ParseCliArgs(&conf, info->args);
     GetAppArena(&app->memoryArena);
 
-#if 0
     Scene_Context *mainMenuScene = NULL;
     mainMenuScene = M_ArenaAlloc(app->memoryArena, sizeof(mainMenuScene), 1);
     CreateMainMenuScene(mainMenuScene);
 
     app->currentScene = mainMenuScene;
-#endif
+    OpenMainWindow(&app->mainWindow);
 }
 
 void App_Run(App_Context *app)
