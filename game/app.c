@@ -1,8 +1,8 @@
 #include "app.h"
 
-#include <core/cli.h>
 #include <core/os.h>
 #include <core/os_file.h>
+
 
 /* static function declaration start */
 static void GetAppArena(M_Arena **arena);
@@ -16,19 +16,23 @@ void App_Init(App_Context *app, const App_ContextCreateInfo *info)
     ParseCliArgs(&conf, info->args);
     GetAppArena(&app->memoryArena);
 
-    Scene_Context *mainMenuScene = M_ArenaAlloc(&app->memoryArena, sizeof(Scene_Context), 1);
+#if 0
+    Scene_Context *mainMenuScene = NULL;
+    mainMenuScene = M_ArenaAlloc(app->memoryArena, sizeof(mainMenuScene), 1);
     CreateMainMenuScene(mainMenuScene);
 
     app->currentScene = mainMenuScene;
+#endif
 }
 
 void App_Run(App_Context *app)
 {
-
+    UNUSED(app);
 }
 
 void App_Cleanup(App_Context *app)
 {
+    UNUSED(app);
 }
 
 static void GetAppArena(M_Arena **arena)

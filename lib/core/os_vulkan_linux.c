@@ -1,7 +1,6 @@
 #include <core/os_vulkan.h>
 #include <core/memory.h>
-#include <core/vulkan.h>          /* for VK_KHR_SURFACE_EXTENSION_NAME */
-#include <core/vulkan_xlib.h>     /* for VK_KHR_XLIB_SURFACE_EXTENSION_NAME */
+#include <core/vulkan.h>
 
 void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
 {
@@ -29,7 +28,7 @@ OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, OS_SurfaceCreateInfo *inf
         .window = info->win->xWindow,
     };
     VkInstance instance = *info->instance;
-    status = VK_CreateXlibSurfaceKHR(instance, &createInfo, NULL, &surface->handle);
+    status = vkCreateXlibSurfaceKHR(instance, &createInfo, NULL, &surface->handle);
     if (status != VK_SUCCESS) {
         return OS_SURFACE_STATUS_FAILED_TO_CREATE_SURFACE;
     }

@@ -26,7 +26,7 @@
 
 #include <core/platform.h>
 
-#ifdef PLATFORM_LINUX
+#ifdef CORE_PLATFORM_LINUX
 
 #define _GNU_SOURCE
 #include <alloca.h>
@@ -74,7 +74,7 @@
 #include <netinet/in.h>
 #endif /* PLATFORM_LINUX */
 
-#ifdef PLATFORM_WINDOWS
+#ifdef CORE_PLATFORM_WINDOWS
 #include <conio.h>
 #include <direct.h>
 #include <io.h>

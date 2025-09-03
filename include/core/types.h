@@ -28,6 +28,16 @@ typedef uint32_t    b32; /* boolean type */
 
 typedef const char  *cstr_t;    /* looks pretty while casting */
 
+#define U8_MAX      ((1<<8)-1)
+#define U16_MAX     ((1<<16)-1)
+#define U32_MAX     ((1<<32)-1)
+#define U64_MAX     ((1<<64)-1)
+
+#define S8_MAX      (U8_MAX/2)
+#define S16_MAX     (U16_MAX/2)
+#define S32_MAX     (U32_MAX/2)
+#define S64_MAX     (U32_MAX/2)
+
 #define SZ_FMT      "%"PRIi64   /* weird and hardcoded */
 #define USZ_FMT     "%"PRIu64   /* applies to this aswell */
 

@@ -69,5 +69,4 @@ CLI_OptResult CLI_GetOpt(const CLI_Opt optArr[],
                 usz nOpts, usz *pCounter, CLI_Args args);
 
 const char *CLI_GetOptStringError(usz errCode);
-
 #endif /* __CORE_CLI_H__ */

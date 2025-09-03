@@ -9,28 +9,28 @@ typedef struct {
     u16 port;
 } OS_NetworkAddress;
 
-#if defined(PLATFORM_LINUX)
+#if defined(CORE_PLATFORM_LINUX)
 typedef int OS_Socket;
 enum {
     OS_SOCKET_SHUTDOWN_READ = SHUT_RD,
     OS_SOCKET_SHUTDOWN_WRITE = SHUT_WR,
     OS_SOCKET_SHUTDOWN_READ_AND_WRITE = SHUT_RDWR,
 };
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(CORE_PLATFORM_WINDOWS)
 typedef SOCKET OS_Socket;
 #else
 # error "platform not supported yet"
-#endif /* PLATFORM_LINUX */
+#endif /* CORE_PLATFORM_LINUX */
 
 enum socketStatusCodes {
     OS_SOCKET_STATUS_SUCCESS = 0,
     OS_SOCKET_STATUS_OUT_OF_BOUNDS_READ,
     OS_SOCKET_STATUS_OUT_OF_BOUNDS_WRITE,
 
-#if defined(PLATFORM_LINUX)
+#if defined(CORE_PLATFORM_LINUX)
     OS_SOCKET_STATUS_HOST_OUT_OF_FDS,
     OS_SOCKET_STATUS_PROCESS_OUT_OF_FDS,
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(CORE_PLATFORM_WINDOWS)
 /* nothing */
 #endif
     OS_SOCKET_STATUS_PROCESS_OUT_OF_SOCKETS,

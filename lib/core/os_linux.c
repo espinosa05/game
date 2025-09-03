@@ -8,13 +8,14 @@
 #include <core/memory.h>
 #include <core/cstd.h>
 #include <core/linux.h>
+#include <core/vulkan.h>
 
 
 #define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
 
 /* static function declaration start */
 static char *GetErrnoStr(int errnoVal);
-static bool SupportedAspectRatio(OS_WindowCreateInfo *info);
+static bool SupportedWindowResolution(OS_WindowCreateInfo *info);
 static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileCreateInfo *info);
 static OS_StreamStatus OpenTCPSocketStream(OS_Stream *stream, const OS_SocketTCPCreateInfo *info);
 static OS_StreamStatus OpenIPCSocketStream(OS_Stream *stream, const OS_SocketIPCCreateInfo *info);
@@ -54,8 +55,8 @@ OS_WmStatus OS_WmShutdown(OS_WindowManager *wm)
 
 OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCreateInfo *info)
 {
-    if (!SupportedAspectRatio(info)) {
-        return OS_WM_STATUS_ASPECT_RATIO_NOT_SUPPORTED;
+    if (!SupportedWindowResolution(info)) {
+        return OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
     }
 
     win->xWindow = XCreateSimpleWindow(wm->xDisplay,
@@ -572,9 +573,9 @@ static OS_SocketStatus OS_SocketErrnoCodeToStatus(sz statusCode, usz socketFunct
     case SOCK_FN_ACCEPT:
         switch (errnoVal) {
         case EWOULDBLOCK: return OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE;
-#if !defined(PLATFORM_LINUX)
+#if !defined(CORE_PLATFORM_LINUX)
         case EAGAIN: return OS_SOCKET_STATUS_EMPTY_CONNECTION_QUEUE;
-#endif /* PLATFORM_LINUX */
+#endif /* CORE_PLATFORM_LINUX */
         case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
         case ECONNABORTED: return OS_SOCKET_STATUS_CONNECTION_WAS_ABORTED;
         case EINTR: return OS_SOCKET_STATUS_CONNECTION_WAS_INTERRUPTED;
@@ -708,7 +709,7 @@ static char *GetErrnoStr(int errnoVal)
     return strerror(errnoVal);
 }
 
-static bool SupportedAspectRatio(OS_WindowCreateInfo *info)
+static bool SupportedWindowResolution(OS_WindowCreateInfo *info)
 {
     IMPL();
     UNUSED(info);

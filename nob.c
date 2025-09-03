@@ -183,7 +183,7 @@ void parse_options(int argc, char **argv)
         exit(EXIT_SUCCESS);
     } else if (IS_ARG("run", *argv)) {
         run_project_executable = true;
-    } else {
+    }  else {
         nob_log(NOB_ERROR, "%s: no such target", *argv);
         exit(EXIT_FAILURE);
     }
@@ -215,13 +215,17 @@ void link_executable()
         nob_cmd_run_sync_and_reset(&game_copy_cmd);
 
         nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "start.o", OUT_DIR);
-        nob_cmd_run_sync(game_copy_cmd);
+        nob_cmd_run_sync_and_reset(&game_copy_cmd);
+
+        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "app.o", OUT_DIR);
+        nob_cmd_run_sync_and_reset(&game_copy_cmd);
     }
 
     Nob_Cmd game_link_cmd = {0};
     nob_cmd_append(&game_link_cmd, CC);
     nob_cmd_append(&game_link_cmd, OUT_DIR "game.o");
     nob_cmd_append(&game_link_cmd, OUT_DIR "start.o");
+    nob_cmd_append(&game_link_cmd, OUT_DIR "app.o");
     nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
     nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
     nob_cmd_run_sync(game_link_cmd);

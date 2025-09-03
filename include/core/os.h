@@ -10,7 +10,7 @@ typedef u32 OS_WmStatus;
 enum osWmStatusCodes {
     OS_WM_STATUS_SUCCESS = 0,
     OS_WM_STATUS_COULDNT_START,
-    OS_WM_STATUS_ASPECT_RATIO_NOT_SUPPORTED,
+    OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED,
 
     OS_WM_STATUS_UNKNOWN,
     OS_WM_STATUS_COUNT,
@@ -56,13 +56,13 @@ enum osExitCodes {
         }                                           \
     MACRO_END
 
-#if defined (PLATFORM_LINUX)
+#if defined (CORE_PLATFORM_LINUX)
 #   include "os_linux_defs.h"
-#elif defined (PLATFORM_WINDOWS)
+#elif defined (CORE_PLATFORM_WINDOWS)
 #   include "os_windows_defs.h"
-#elif defined (PLATFORM_MACOS)
+#elif defined (CORE_PLATFORM_MACOS)
 #   include "os_macos_defs.h"
-#endif /* PLATFORM_LINUX */
+#endif /* CORE_PLATFORM_LINUX */
 
 OS_WmStatus OS_WmInit(OS_WindowManager *wm);
 OS_WmStatus OS_WmShutdown(OS_WindowManager *wm);

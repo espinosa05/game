@@ -75,6 +75,7 @@ static const char *g_errorMessages[] = {
     [OPT_ERR_EXPECTED_SUBOPT]   = "Option requires additional argument!",
     [OPT_ERR_UNKNOWN]           = "Unknown Error!",
 };
+
 const char *CLI_GetOptStringError(usz errCode)
 {
     if (errCode > OPT_ERR_UNKNOWN)

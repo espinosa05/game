@@ -2,8 +2,7 @@
 #define __CORE_OS_VULKAN_H__
 
 #include "os.h"
-
-#include <vulkan/vulkan.h>
+#include <core/vulkan.h>
 
 typedef struct {
     u32         count;

@@ -5,7 +5,7 @@
 #include <core/cstd.h>
 #include <core/types.h>
 
-#ifdef PLATFORM_LINUX
+#ifdef CORE_PLATFORM_LINUX
 typedef int OS_File;
 typedef int OS_FilePerm;
 enum filePerm {
@@ -16,7 +16,7 @@ enum filePerm {
 
 #define OS_FILE_INVALID ((int) -1)
 
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(CORE_PLATFORM_WINDOWS)
 typedef HANDLE OS_File;
 typedef DWORD OS_FilePerm;
 enum filePerm {

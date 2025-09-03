@@ -3,6 +3,7 @@
 
 #include <core/types.h>
 #include <core/memory.h>
+#include <core/cli.h>
 
 typedef struct {
     CLI_Args    args;
@@ -11,7 +12,9 @@ typedef struct {
 
 typedef struct {
     M_Arena         *memoryArena;
+#if 0
     Scene_Context   *currentScene;
+#endif
 } App_Context;
 
 enum WindowState {

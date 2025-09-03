@@ -11,11 +11,11 @@
 #   define ASSERT_GUI(...) __EMPTY_MACRO__
 #endif /* CORE_HEADLESS */
 
-#if defined(PLATFORM_LINUX)
+#if defined(CORE_PLATFORM_LINUX)
 #   include "linux_utils.h"
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(CORE_PLATFORM_WINDOWS)
 #   include "windwos_utils.h"
-#elif defined(PLATFORM_MACOS)
+#elif defined(CORE_PLATFORM_MACOS)
 #   include "macos_utils.h"
 #endif
 
