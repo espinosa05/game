@@ -1,5 +1,6 @@
 #include <core/cli.h>
-#include "game.h"
+
+extern void Main(CLI_Args args);
 
 int main(int argc, char **argv)
 {
