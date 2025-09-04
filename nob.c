@@ -211,11 +211,13 @@ void link_executable()
     /* copy the game object files */
     {
         Nob_Cmd game_copy_cmd = {0};
-        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "game.o", OUT_DIR);
-        nob_cmd_run_sync_and_reset(&game_copy_cmd);
 
         nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "start.o", OUT_DIR);
         nob_cmd_run_sync_and_reset(&game_copy_cmd);
+
+        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "main.o", OUT_DIR);
+        nob_cmd_run_sync_and_reset(&game_copy_cmd);
+
 
         nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "app.o", OUT_DIR);
         nob_cmd_run_sync_and_reset(&game_copy_cmd);
@@ -223,9 +225,9 @@ void link_executable()
 
     Nob_Cmd game_link_cmd = {0};
     nob_cmd_append(&game_link_cmd, CC);
-    nob_cmd_append(&game_link_cmd, OUT_DIR "game.o");
     nob_cmd_append(&game_link_cmd, OUT_DIR "start.o");
     nob_cmd_append(&game_link_cmd, OUT_DIR "app.o");
+    nob_cmd_append(&game_link_cmd, OUT_DIR "main.o");
     nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
     nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
     nob_cmd_run_sync(game_link_cmd);
