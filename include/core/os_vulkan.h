@@ -28,8 +28,8 @@ enum osSurfaceStatus {
 #define OS_SURFACE_STATUS_UNKNOWN OS_SURFACE_STATUS_COUNT
 };
 
-void OS_WM_GetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions);
-void OS_WM_CleanupRequiredExtensions(OS_WindowManagerExtensions *wmExtensions);
-OS_SurfaceStatus os_SurfaceCreate(OS_Surface *surface, OS_SurfaceCreateInfo *info);
+void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions);
+void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtensions);
+OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info);
 
 #endif /* __V2_CORE_OS_VULKAN_H__ */

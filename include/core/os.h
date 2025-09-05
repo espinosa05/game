@@ -6,6 +6,18 @@
 #include <core/log.h>
 #include <core/os_streams.h>
 
+#define X_POS_CENTERED (sz)(-1)
+#define Y_POS_CENTERED (sz)(-1)
+
+#define OS_WM_CALL(call)                            \
+    MACRO_START                                     \
+        OS_WM_Status st = call;                     \
+        if (UNLIKELY(OS_WM_STATUS_SUCCESS != st)) { \
+            ERROR_LOG("OS_WM_FAILURE("#call")");    \
+            ABORT();                                \
+        }                                           \
+    MACRO_END
+
 typedef u32 OS_WmStatus;
 enum osWmStatusCodes {
     OS_WM_STATUS_SUCCESS = 0,
@@ -44,18 +56,6 @@ enum osExitCodes {
     OS_EXIT_FAILURE = 1,
 };
 
-#define X_POS_CENTERED (sz)(-1)
-#define Y_POS_CENTERED (sz)(-1)
-
-#define OS_WM_CALL(call)                            \
-    MACRO_START                                     \
-        OS_WM_Status st = call;                     \
-        if (UNLIKELY(OS_WM_STATUS_SUCCESS != st)) { \
-            ERROR_LOG("OS_WM_FAILURE("#call")");    \
-            ABORT();                                \
-        }                                           \
-    MACRO_END
-
 #if defined (CORE_PLATFORM_LINUX)
 #   include "os_linux_defs.h"
 #elif defined (CORE_PLATFORM_WINDOWS)
@@ -78,6 +78,7 @@ OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret);
 //OS_ThreadStatus OS_ThreadGetID(OS_Thread *thr, OS_Tid *tid);
 //OS_ThreadStatus OS_ThreadDetach(OS_Thread *thr);
 
+void OS_TimeGetCurrent(OS_Time *time);
 void OS_TimeStart(OS_Time *time);
 void OS_TimeEnd(OS_Time *time);
 

@@ -2,20 +2,15 @@
 #define __CORE_OS_LINUX_DEFS_H__
 
 #include <core/cstd.h>
-
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xos.h>
-#include <X11/Xatom.h>
+#include <xcb/xcb.h>
 
 typedef struct {
-    Display *xDisplay;
-    int     xScreen;
+
 } OS_WindowManager;
 
 typedef struct {
-    Window  xWindow;
-    GC      *xGc;
+    xcb_window_t    xcbWindow;
+    xcb_gcontext_t  xcbGraphicsContext;
 } OS_Window;
 
 typedef struct {

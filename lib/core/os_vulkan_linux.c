@@ -1,3 +1,4 @@
+#include <core/utils.h>
 #include <core/os_vulkan.h>
 #include <core/memory.h>
 #include <core/vulkan.h>
@@ -6,7 +7,7 @@ void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
 {
     const char *requiredXlibExtensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME,
     };
 
     wmExtensions->count = ARRAY_SIZE(requiredXlibExtensions);
@@ -14,12 +15,12 @@ void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
     M_Copy(wmExtensions->names, requiredXlibExtensions, sizeof(char *)*wmExtensions->count);
 }
 
-void OS_WmCleanupRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
+void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtensions)
 {
-    M_Free(wmExtensions->names);
+    M_Free(wmExtensions.names);
 }
 
-OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, OS_SurfaceCreateInfo *info)
+OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info)
 {
     VkResult status = -1;
     VkXlibSurfaceCreateInfoKHR createInfo = {

@@ -59,20 +59,6 @@ OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCre
         return OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
     }
 
-    win->xWindow = XCreateSimpleWindow(wm->xDisplay,
-                                        DefaultRootWindow(wm->xDisplay),
-                                        (int)info->xPos,
-                                        (int)info->yPos,
-                                        (int)info->width,
-                                        (int)info->height,
-                                        DEFAULT_BORDER_WIDTH,
-                                        DEFAULT_BORDER_COLOR,
-                                        DEFAULT_BACKGROUND_COLOR);
-
-    XStoreName(wm->xDisplay, win->xWindow, info->initialTitle);
-    XUnmapWindow(wm->xDisplay, win->xWindow); /* start the window in the hidden state */
-    XFlush(wm->xDisplay); /* make sure it's submitted to the Server */
-
     return OS_WM_STATUS_SUCCESS;
 }
 
@@ -149,16 +135,22 @@ OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret)
     return OS_THREAD_STATUS_SUCCESS;;
 }
 
+void OS_TimeGetCurrent(OS_Time *time)
+{
+    ASSERT_RT(0 == clock_gettime(CLOCK_REALTIME, &time->end),
+              "couldn't get system time: "STR_FMT, GetErrnoStr(errno));
+}
+
 void OS_TimeStart(OS_Time *time)
 {
-    ASSERT(0 == clock_gettime(CLOCK_MONOTONIC, &time->start),
-           "couldn't measure time start: "STR_FMT, GetErrnoStr(errno));
+    ASSERT_RT(0 == clock_gettime(CLOCK_MONOTONIC, &time->start),
+              "couldn't measure time start: "STR_FMT, GetErrnoStr(errno));
 }
 
 void OS_TimeEnd(OS_Time *time)
 {
-    ASSERT(0 == clock_gettime(CLOCK_MONOTONIC, &time->end),
-           "couldn't measure time end: "STR_FMT, GetErrnoStr(errno));
+    ASSERT_RT(0 == clock_gettime(CLOCK_MONOTONIC, &time->end),
+              "couldn't measure time end: "STR_FMT, GetErrnoStr(errno));
 }
 
 usz OS_TimeGetNsec(OS_Time *time)

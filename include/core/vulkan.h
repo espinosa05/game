@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.h>
 
 #if defined(CORE_PLATFORM_LINUX)
-#   include <vulkan/vulkan_xlib.h>
+#   include <vulkan/vulkan_xcb.h>
 #   include <vulkan/vulkan_wayland.h>
 #elif defined(CORE_PLATFORM_WINDOWS)
 #   error "windows not supported right now!"
