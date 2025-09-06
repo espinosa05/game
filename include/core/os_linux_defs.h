@@ -5,7 +5,8 @@
 #include <xcb/xcb.h>
 
 typedef struct {
-
+    xcb_connection_t    *xcbConnection;
+    xcb_screen_t        *xcbScreen;
 } OS_WindowManager;
 
 typedef struct {
@@ -16,11 +17,6 @@ typedef struct {
 typedef struct {
     pid_t pid;
 } OS_Thread;
-
-
-/* we just define the native handle for a socket. No additional API*/
-typedef int OS_Socket;
-
 
 typedef struct {
     struct timespec start;

@@ -11,7 +11,7 @@
 
 #define OS_WM_CALL(call)                            \
     MACRO_START                                     \
-        OS_WM_Status st = call;                     \
+        OS_WmStatus st = call;                      \
         if (UNLIKELY(OS_WM_STATUS_SUCCESS != st)) { \
             ERROR_LOG("OS_WM_FAILURE("#call")");    \
             ABORT();                                \

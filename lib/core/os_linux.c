@@ -33,11 +33,15 @@ static OS_File __OS_StdOut;
 static OS_File __OS_StdErr;
 /* global data end */
 
-
 OS_WmStatus OS_WmInit(OS_WindowManager *wm)
 {
-    wm->xDisplay = XOpenDisplay(NULL);
-    wm->xScreen = DefaultScreen(wm->xDisplay);
+    xcb_setup_t             xcbSetup;
+    xcb_screen_iterator_t   xcbScreens;
+
+    wm->xcbConnection = xcb_connect(NULL, NULL);
+    xcbSetup = xcb_get_setup(wm->xcbConnection);
+    xcbScreens = xcb_setup_roots_iterator(xcbSetup);
+    wm->xcbScreen = screens.data;
 
     return OS_WM_STATUS_SUCCESS;
 }
@@ -59,26 +63,38 @@ OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCre
         return OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
     }
 
+    win->xcbWindow = xcb_generate_id(wm->xcbConnection);
+    xcb_create_window(wm->xcbConnection, XCB_COPY_FROM_PARENT,
+                      win->window,
+                      wm->xcbScreen->root,
+                      info->xPos,
+                      info->yPos,
+                      DEFAULT_BORDER_WIDTH
+                      XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                      wm->xcbScreen->root_visual,
+                      0,
+                      NULL);
+
     return OS_WM_STATUS_SUCCESS;
 }
 
 void OS_WmWindowShow(OS_WindowManager *wm, OS_Window *win)
 {
-    XMapWindow(wm->xDisplay, win->xWindow);
-    XFlush(wm->xDisplay);
+    xcb_map_window(wm->xcbConnection, win->xcbWindow);
+    xcb_flush(wm->xcbConnection);
 }
 
 
 void OS_WmWindowHide(OS_WindowManager *wm, OS_Window *win)
 {
-    XUnmapWindow(wm->xDisplay, win->xWindow);
-    XFlush(wm->xDisplay);
+    xcb_unmap_window(wm->xcbConnection, win->xcbWindow);
+    xcb_flush(wm->xcbConnection);
 }
 
 void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *title)
 {
     XStoreName(wm->xDisplay, win->xWindow, title);
-    XFlush(wm->xDisplay);
+    xcb_flush(wm->xcbConnection);
 }
 
 OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win)
