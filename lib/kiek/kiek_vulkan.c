@@ -5,9 +5,12 @@
 #define KIEK_ENGINE_ID_STRING "KIEK!"
 
 #define ERR_MESSAGE_INCOMPATIBLE_DRIVER             "Vulkan Driver not compatible! Make sure your drivers are up to date!"
-#define ERR_MESSAGE_NO_SUITABLE_VK_DEVICE_PRESENT   "No suitable vulkan device found! Make sure your GPU supports Vulkan and that your drivers are up to date!"
+#define ERR_MESSAGE_NO_COMPATIBLE_DEVICE_PRESENT    "No Vulkan compatible device found! Your drivers are either out of date or your GPU does not support Vulkan!"
+#define ERR_MESSAGE_NO_SUITABLE_VK_DEVICE_PRESENT   "Vulkan device does not support required features! Consult your GPU vendor and update your driver!"
 #define ERR_MESSAGE_VK_CREATE_DEVICE_FAILED         "Failed to setup Vulkan device!"
 #define ERR_MESSAGE_VK_CREATE_INSTANCE_FAILED       "Could not start Vulkan!"
+
+#define KIEK_TRACE(__VA_ARGS__) F_LOG_T(OS_STDERR, "KIEK_TRACE", ANSI_COLOR_YELLOW, __VA_ARGS__)
 
 #define VULKAN_ASSERT(call, ...)                                                                \
     MACRO_START                                                                                 \
@@ -27,7 +30,7 @@ typedef struct {
 
 typedef struct {
     u32                     count;
-    VkPhysicalDevices       *devices;
+    VkPhysicalDevices       *handles;
 } VulkanDevices;
 
 typedef struct {
@@ -51,9 +54,11 @@ static b32  RequiredInstanceExtensionsPresent(const OS_WindowManagerExtensions e
 static void EnumerateInstanceExtensions(VulkanInstanceExtensions *presentExtensions);
 static void CleanupInstanceExtensions(const VulkanInstanceExtensions presentExtensions);
 
-static void EnumerateDevices(const Kiek_VulkanContext *kvk, VulkanDevices *presentDevices);
-static void EnumerateDeviceExtensions(const VkPhysicalDevice device, VulkanDeviceExtensions *deviceExtensions);
-static b32  SuitableDevicePresent(Kiek_VulkanContext *kvk, VulkanGraphicsAdapter *device);
+static void EnumerateDevices(VulkanDevices *presentDevices);
+static void CleanupDevices(const VulkanDevices presentDevices);
+static void EnumerateDeviceExtensions(VulkanDeviceExtensions *deviceExtensions);
+static b32  IsCompatibleDevicePresent(VulkanDeviceData *deviceData);
+static b32  IsSuitableDevicePresent(VulkanDeviceData *deviceData);
 /* static function declaration end */
 
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo)
@@ -83,22 +88,24 @@ void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateI
     OS_WmCleanupRequiredExtensions(wmExtensions);
 
     /* Find a suitable GPU and create a logical instance */
-    VulkanDeviceData suitableGPU = {0};
-    ASSSERT_RT(SuitableDevicePresent(&suitableGPU), ERR_MESSAGE_NO_SUITABLE_VK_DEVICE_PRESENT);
+    VulkanDeviceData compatibleDeviceData = {0};
+    ASSERT_RT(IsCompatibleDevicePresent(&compatibleDeviceData), ERR_MESSAGE_NO_COMPATIBLE_DEVICE_PRESENT);
+    ASSERT_RT(IsSuitableDevice(&compatibleDeviceData), ERR_MESSAGE_NO_SUITABLE_VK_DEVICE_PRESENT);
     VkDeviceCreateInfo deviceInfo = {
         .sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount       = suitableGPU.queueCreateInfoCount,
-        .pQueueCreateInfos          = suitableGPU.queueCreateInfos,
-        .enabledExtensionCount      = suitableGPU.enabledExtensionCount,
-        .ppEnabledExtensionNames    = suitableGPU.enabledExtensionNames,
-        .pEnabledFeatures           = &suitableGPU.enabledFeatures,
+        .queueCreateInfoCount       = compatibleDeviceData.queueCreateInfoCount,
+        .pQueueCreateInfos          = compatibleDeviceData.queueCreateInfos,
+        .enabledExtensionCount      = compatibleDeviceData.enabledExtensionCount,
+        .ppEnabledExtensionNames    = compatibleDeviceData.enabledExtensionNames,
+        .pEnabledFeatures           = &compatibleDeviceData.enabledFeatures,
     };
-    VULKAN_ASSERT(vkCreateDevice(suitableGPU.handle, &deviceInfo, NULL, &kvk->logicalDevice), ERR_MESSAGE_VK_CREATE_DEVICE_FAILED);
+    VULKAN_ASSERT(vkCreateDevice(compatibleDevice.handle, &deviceInfo, NULL, &kvk->logicalDevice.handle), ERR_MESSAGE_VK_CREATE_DEVICE_FAILED);
 }
 
 void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk)
 {
-
+    KIEK_TRACE(shutting down...);
+    vkDestroyInstance(kvk->instance, NULL);
 }
 
 static void InitKiekVulkanArena(M_Arena *kiekArena, M_Arena *userArg)
@@ -158,17 +165,15 @@ static b32 RequiredInstanceExtensionsPresent(const OS_WindowManagerExtensions ex
 
 static void EnumerateInstanceExtensions(VulkanInstanceExtensions *presentExtensions)
 {
-    u32 extensionPropertyCount;
-
-    extensionPropertyCount = 0;
-    vkEnumerateInstanceExtensionProperties(NULL, &extensionPropertyCount, NULL);
-    presentExtensions.properties = M_Alloc(sizeof(*extensionProperties), extensionPropertyCount);
-    presentExtensions.names = M_Alloc(sizeof(char *), extensionPropertyCount);
-    vkEnumerateInstanceExtensionProperties(NULL, &extensionPropertyCount, &extensionProperties);
+    presentExtensions->count         = 0;
+    vkEnumerateInstanceExtensionProperties(NULL, presentExtensions.count, NULL);
+    presentExtensions->properties    = M_Alloc(sizeof(*presentExtensions->properties),  presentExtensions->count);
+    presentExtensions->names         = M_Alloc(sizeof(*presentExtensions->count),       presentExtensions->count);
+    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensions->count, &extensionProperties);
 
     TODO("Create Dynamic Array implementation for properties!");
-    for (u32 i = 0; i < extensionPropertyCount; ++i) {
-        presentExtensions.names[i] = extensions.properties[i].extensionName;
+    for (u32 i = 0; i < presentExtensions->count; ++i) {
+        presentExtensions.names[i] = presentExtensions->properties[i].extensionName;
     }
 
 }
@@ -179,27 +184,32 @@ static void CleanupInstanceExtensions(const VulkanInstanceExtensions presentExte
     M_Free(presentExtensions.properties);
 }
 
-static void EnumerateDevices(const Kiek_VulkanContext *kvk, VulkanDevices *presentDevices)
+static void EnumerateDevices(VulkanDevices *presentDevices)
 {
-    u32 physicalDeviceCount;
+    presentDevices->count   = 0;
+    vkEnumeratePhysicalDevices(NULL, &presentDevices->count, NULL);
+    presentDevices->handles = M_Alloc(sizeof(*presentDevices->handles), presentDevices->count);
+    vkEnumeratePhysicalDevice(NULL, &presentDevices->count, presentDevices->handles);
+}
 
-    physicalDeviceCount = 0;
-    vkEnumeratePhysicalDevices(NULL, &physicalDeviceCount, NULL);
-    presentDevices.
+static void CleanupDevices(const VulkanDevices presentDevices)
+{
+    M_Free(presentDevices.handles);
 }
 
 static void EnumerateDeviceExtensions(const VkPhysicalDevice device, VulkanDeviceExtensions *deviceExtensions)
 {
-
+    TODO("enumerate device extensions");
 }
 
-static b32 SuitableDevicePresent(Kiek_VulkanContext *kvk, VkPhysicalDevice *device)
+static b32 IsCompatibleDevicePresent(VulkanDeviceData *deviceData)
 {
-    VulkanDevices presentDevices = {0};
-    EnumerateDevices(kvk, &presentDevices);
+    TODO("is compatible device present");
+    return TRUE;
+}
 
-    for (usz i = 0; i < presentDevices.count; ++i) {
-        VulkanDeviceExtensions extensions = {0};
-        EnumerateDeviceExtensions(presentDevices.devices[i], &extensions);
-    }
+static b32 IsSuitableDevicePresent(VulkanDeviceData *devicData)
+{
+    TODO("is suitable device present");
+    return TRUE;
 }

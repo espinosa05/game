@@ -9,7 +9,7 @@
 
 #define GAME_DIR "game/"
 
-#define LINKS   "-lcore", "-lX11", "-lvulkan"
+#define LINKS   "-lcore", "-lxcb", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"

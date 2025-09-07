@@ -16,7 +16,7 @@ typedef struct {
     /* Vulkan API instance */
     VkInstance                  instance;
     /* Vulkan Device information */
-    Kiek_VulkanDeviceContext    *device;
+    Kiek_VulkanDeviceContext    logicalDevice;
 } Kiek_VulkanContext;
 
 typedef struct {

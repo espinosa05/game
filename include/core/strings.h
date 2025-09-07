@@ -13,6 +13,7 @@ typedef struct {
 
 #define NULL_TERM_SIZE 1
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'
+#define CONST_STRLEN(str)   (sizeof(str)/sizeof(str*)-NULL_TERM_SIZE)
 
 #define CStr_Length(s) strlen(s)
 #define CStr_Compare(s1, s2, n) (0 == strncmp(s1, s2, n))

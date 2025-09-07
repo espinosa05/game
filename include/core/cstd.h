@@ -27,7 +27,6 @@
 #include <core/platform.h>
 
 #ifdef CORE_PLATFORM_LINUX
-
 #define _GNU_SOURCE
 #include <alloca.h>
 #include <dirent.h>

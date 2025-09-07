@@ -22,7 +22,7 @@ typedef struct {
         OS_SocketTCPCreateInfo  *tcpInfo;
         OS_FileCreateInfo       *fileInfo;
         M_BufferCreateInfo      *byteBufferInfo;
-    };
+    } raw;
 } OS_StreamCreateInfo;
 
 typedef struct {
@@ -31,7 +31,7 @@ typedef struct {
         OS_File         file;
         OS_Socket       socket;
         M_Buffer        byteBuffer;
-    };
+    } raw;
 } OS_Stream;
 
 enum OS_StreamStatusCodes {

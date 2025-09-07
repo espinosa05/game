@@ -4,6 +4,7 @@
 #include <core/os_socket.h>
 
 #include <core/utils.h>
+#include <core/strings.h>
 #include <core/types.h>
 #include <core/memory.h>
 #include <core/cstd.h>
@@ -75,6 +76,8 @@ OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCre
                       0,
                       NULL);
 
+    OS_WmWindowChangeTitle(wm, win, info->initialTitle);
+
     return OS_WM_STATUS_SUCCESS;
 }
 
@@ -91,16 +94,52 @@ void OS_WmWindowHide(OS_WindowManager *wm, OS_Window *win)
     xcb_flush(wm->xcbConnection);
 }
 
+#define UTF8_WIDTH 8
+
 void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *title)
 {
-    XStoreName(wm->xDisplay, win->xWindow, title);
+    xcb_intern_atom_cookie_t xcbCookie;
+    xcb_intern_atom_reply_t *xcbReply;
+    xcb_atom_t windowName;
+    xcb_atom_t utf8String;
+
+    {
+        xcbCookie   = xcb_intern_atom(wm->xcbConnection, 0, CONST_STRLEN("_NET_WM_NAME"), "_NET_WM_NAME");
+        xcbReply    = xcb_intern_atom_reply(wm->xcbConnection, xcbCookie);
+        windowName  = xcbReply->atom;
+        M_Free(xcbReply);
+    }
+
+    {
+        xcbCookie   = xcb_intern_atom(wm->xcbConnection, 0, CONST_STRLEN("UTF8_STRING"), "UTF8_STRING");
+        xcbReply    = xcb_intern_atom_reply(wm->xcbConnection, xcbCookie);
+        utf8String  = xcbReply->atom;
+        M_Free(xcbReply);
+    }
+
+    xcb_change_property(wm->xcbConnection,
+                        XCB_PROP_MODE_REPLACE,
+                        win->xcbWindow,
+                        windowName,
+                        utf8String,
+                        UTF8_WIDTH,
+                        CStr_Len(title),
+                        title);
+
+    xcb_change_property(wm->xcbConnection,
+                        XCB_PROP_MODE_REPALCE,
+                        win->xcbWindow,
+                        XCB_ATOM_WM_NAME,
+                        XCB_ATOM_STRING,
+                        UTF8_WIDTH,
+                        CStr_Len(title),
+                        title);
+
     xcb_flush(wm->xcbConnection);
 }
 
 OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win)
 {
-    XDestroyWindow(wm->xDisplay, win->xWindow);
-    XFlush(wm->xDisplay);
 
     return OS_WM_STATUS_SUCCESS;
 }
@@ -217,13 +256,13 @@ OS_StreamStatus OS_StreamOpen(OS_Stream *stream, const OS_StreamCreateInfo *info
     OS_StreamStatus st = OS_STREAM_STATUS_UNKNOWN;
     switch (info->type) {
     case OS_STREAM_TYPE_IPC:
-        st = OpenIPCSocketStream(stream, info->ipcInfo);
+        st = OpenIPCSocketStream(stream, info->raw.ipcInfo);
         break;
     case OS_STREAM_TYPE_NETWORK:
-        st = OpenTCPSocketStream(stream, info->tcpInfo);
+        st = OpenTCPSocketStream(stream, info->raw.tcpInfo);
         break;
     case OS_STREAM_TYPE_FILE:
-        st = OpenFileStream(stream, info->fileInfo);
+        st = OpenFileStream(stream, info->raw.fileInfo);
         break;
     }
 
@@ -235,24 +274,25 @@ OS_StreamStatus OS_StreamClose(OS_Stream *stream)
     switch (stream->type) {
     case OS_STREAM_TYPE_IPC:
     case OS_STREAM_TYPE_NETWORK:
-        OS_SocketClose(&stream->socket);
+        OS_SocketClose(&stream->raw.socket);
         break;
     case OS_STREAM_TYPE_FILE:
-        OS_FileClose(&stream->file);
+        OS_FileClose(&stream->raw.file);
         break;
     }
 
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-#define COPY_CHUNK_SIZE sizeof(u64)
+#define COPY_CHUNK_SIZE 64
 OS_StreamStatus OS_StreamCopy(OS_Stream *dst, OS_Stream *src, usz ammount)
 {
     for (usz i = 0; i < ammount/COPY_CHUNK_SIZE; ++i) {
-        u64 chunk;
-        OS_StreamRead(src, &chunk, sizeof(chunk), COPY_CHUNK_SIZE);
-        OS_StreamWrite(dst, &chunk, sizeof(chunk), COPY_CHUNK_SIZE);
+        u8 chunk[COPY_CHUNK_SIZE];
+        OS_StreamRead(src, chunk, sizeof(*chunk), COPY_CHUNK_SIZE);
+        OS_StreamWrite(dst, chunk, sizeof(*chunk), COPY_CHUNK_SIZE);
     }
+
     for (usz i = 0; i < ammount%COPY_CHUNK_SIZE; ++i) {
         u8 bytes;
         OS_StreamRead(src, &bytes, sizeof(bytes), BYTE_SIZE);
@@ -267,13 +307,13 @@ OS_StreamStatus OS_StreamRead(OS_Stream *stream, void *buffer, const usz bufferS
     switch (stream->type) {
     case OS_STREAM_TYPE_IPC:
     case OS_STREAM_TYPE_NETWORK:
-        OS_SocketReceiveData(&stream->socket, buffer, bufferSize, size, 0);
+        OS_SocketReceiveData(&stream->raw.socket, buffer, bufferSize, size, 0);
         break;
     case OS_STREAM_TYPE_FILE:
-        OS_FileRead(&stream->file, buffer, bufferSize, size);
+        OS_FileRead(&stream->raw.file, buffer, bufferSize, size);
         break;
     case OS_STREAM_TYPE_BYTE:
-        M_BufferRead(&stream->byteBuffer, buffer, bufferSize, size);
+        M_BufferRead(&stream->raw.byteBuffer, buffer, bufferSize, size);
         break;
     }
 
@@ -285,13 +325,13 @@ OS_StreamStatus OS_StreamWrite(OS_Stream *stream, void *buffer, const usz buffer
     switch (stream->type) {
     case OS_STREAM_TYPE_IPC:
     case OS_STREAM_TYPE_NETWORK:
-        OS_SocketSendData(&stream->socket, buffer, bufferSize, size, 0);
+        OS_SocketSendData(&stream->raw.socket, buffer, bufferSize, size, 0);
         break;
     case OS_STREAM_TYPE_FILE:
-        OS_FileWrite(&stream->file, buffer, bufferSize, size);
+        OS_FileWrite(&stream->raw.file, buffer, bufferSize, size);
         break;
     case OS_STREAM_TYPE_BYTE:
-        M_BufferWrite(&stream->byteBuffer, buffer, bufferSize, size);
+        M_BufferWrite(&stream->raw.byteBuffer, buffer, bufferSize, size);
         break;
     }
 
@@ -726,19 +766,19 @@ static bool SupportedWindowResolution(OS_WindowCreateInfo *info)
 
 static OS_StreamStatus OpenFileStream(OS_Stream *stream, const OS_FileCreateInfo *info)
 {
-    OS_FileOpen(&stream->file, info);
+    OS_FileOpen(&stream->raw.file, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
 static OS_StreamStatus OpenTCPSocketStream(OS_Stream *stream, const OS_SocketTCPCreateInfo *info)
 {
-    OS_SocketCreateTCPSocket(&stream->socket, info);
+    OS_SocketCreateTCPSocket(&stream->raw.socket, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
 static OS_StreamStatus OpenIPCSocketStream(OS_Stream *stream, const OS_SocketIPCCreateInfo *info)
 {
-    OS_SocketCreateIPCSocket(&stream->socket, info);
+    OS_SocketCreateIPCSocket(&stream->raw.socket, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
