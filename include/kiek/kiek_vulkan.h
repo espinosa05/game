@@ -2,25 +2,48 @@
 #define __KIEK_VULKAN_H__
 
 #include <core/vulkan.h>
-#include <core/memory.h>
+#include <core/utils.h>
+#include <core/log.h>
 
 typedef struct {
-    VkDevice    handle;
-} Kiek_VulkanDevice;
+    VkDevice                            handle;
+    VkPhysicalDeviceProperties          properties;
+    VkPhysicalDeviceFeatures            features;
+    VkPhysicalDeviceMemoryProperties    memoryProperties;
+} Kiek_VulkanDeviceContext;
 
 typedef struct {
-    VkInstance          instance;
-    VkSurfaceKHR        surface;
-    Kiek_VulkanDevice   devices;
-    M_Arena             *arena;
+    /* Vulkan API instance */
+    VkInstance                  instance;
+    /* Vulkan Device information */
+    Kiek_VulkanDeviceContext    logicalDevice;
 } Kiek_VulkanContext;
 
 typedef struct {
-    const char  *appName;
-    M_Arena     *vulkanArena;
+    u32 major;
+    u32 minor;
+    u32 patch;
+} Kiek_ApplicationVersionHeader;
+
+typedef struct {
+    Kiek_ApplicationVersionHeader   *appVersionHeader;
+    /* optional argument! */
+    const char                      *appName;
 } Kiek_VulkanContextCreateInfo;
 
-void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo *kvkInfo);
+#ifndef KIEK_ENGINE_VERSION_MAJOR
+#   define KIEK_ENGINE_VERSION_MAJOR 0
+#endif /* KIEK_ENGINE_VERSION_MAJOR */
+
+#ifndef KIEK_ENGINE_VERSION_MINOR
+#   define KIEK_ENGINE_VERSION_MINOR 0
+#endif /* KIEK_ENGINE_VERSION_MINOR */
+
+#ifndef KIEK_ENGINE_VERSION_PATCH
+#   define KIEK_ENGINE_VERSION_PATCH 0
+#endif /* KIEK_ENGINE_VERSION_PATCH */
+
+void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo);
 void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk);
 
 #endif /* __KIEK_VULKAN_H__ */

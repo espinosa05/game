@@ -5,14 +5,14 @@
 
 void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
 {
-    const char *requiredXlibExtensions[] = {
+    const char *requiredXcbExtensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_XCB_SURFACE_EXTENSION_NAME,
     };
 
-    wmExtensions->count = ARRAY_SIZE(requiredXlibExtensions);
+    wmExtensions->count = ARRAY_SIZE(requiredXcbExtensions);
     wmExtensions->names = M_Alloc(sizeof(*wmExtensions->names), wmExtensions->count);
-    M_Copy(wmExtensions->names, requiredXlibExtensions, sizeof(char *)*wmExtensions->count);
+    M_Copy(wmExtensions->names, requiredXcbExtensions, wmExtensions->count*sizeof(char *));
 }
 
 void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtensions)
@@ -23,13 +23,13 @@ void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtension
 OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info)
 {
     VkResult status = -1;
-    VkXlibSurfaceCreateInfoKHR createInfo = {
-        .sType  = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-        .dpy    = info->wm->xDisplay,
-        .window = info->win->xWindow,
+    VkXcbSurfaceCreateInfoKHR createInfo = {
+        .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+        .connection = info->wm->xcbConnection,
+        .window     = info->win->xcbWindow,
     };
     VkInstance instance = *info->instance;
-    status = vkCreateXlibSurfaceKHR(instance, &createInfo, NULL, &surface->handle);
+    status = vkCreateXcbSurfaceKHR(instance, &createInfo, NULL, &surface->handle);
     if (status != VK_SUCCESS) {
         return OS_SURFACE_STATUS_FAILED_TO_CREATE_SURFACE;
     }
