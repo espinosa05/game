@@ -27,17 +27,28 @@ void App_Init(App_Context *app, const App_ContextCreateInfo *info)
     App_Config conf = {0};
     ParseCliArgs(&conf, info->args);
     TODO("ParseConfigFile");
-
     GetAppArena(&app->memoryArena);
+
+    Kiek_ApplicationVersionHeader version = {
+        .major = 0,
+        .minor = 0,
+        .patch = 1,
+    };
+    Kiek_VulkanContextCreateInfo kvkInfo = {
+        .appName            = info->name,
+        .appVersionHeader   = &version,
+    };
+    Kiek_VulkanStartup(&app->kvk, kvkInfo);
 }
 
 void App_Run(App_Context *app)
 {
     UNUSED(app);
 }
+
 void App_Cleanup(App_Context *app)
 {
-    UNUSED(app);
+    Kiek_VulkanShutdown(&app->kvk);
 }
 
 static void GetAppArena(M_Arena **arena)

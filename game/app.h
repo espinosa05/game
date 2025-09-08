@@ -5,13 +5,16 @@
 #include <core/memory.h>
 #include <core/cli.h>
 
+#include <kiek/kiek_vulkan.h>
+
 typedef struct {
     CLI_Args    args;
     const char  *name;
 } App_ContextCreateInfo;
 
 typedef struct {
-    M_Arena         *memoryArena;
+    Kiek_VulkanContext  kvk;
+    M_Arena             *memoryArena;
 } App_Context;
 
 void App_Init(App_Context *app, const App_ContextCreateInfo *info);

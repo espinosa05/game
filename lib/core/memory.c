@@ -59,3 +59,45 @@ M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammoun
     return M_BUFFER_STATUS_SUCCESS;
 }
 
+void M_ArrayInit(M_Array *array, usz width, usz initSize)
+{
+    array->data     = M_Alloc(width, InitSize);
+    array->width    = width;
+    array->count    = 0;
+    array->cap      = initSize;
+}
+
+void M_ArrayInsert(const M_Array *array, usz index, void *element)
+{
+    if (index > array->cap)
+        array->data = M_Realloc(aray->data, index + 1);
+
+    if (index > array->count)
+        array->count = index;
+
+    M_Copy(&array->data[index], element, array->width);
+}
+
+void M_ArrayGet(const M_Array *arry, usz index, void *element)
+{
+    M_Copy(element, &array->data[index], array->width);
+}
+
+void M_ArrayAppend(const M_Array *array, void *element)
+{
+    M_ArrayInsert(array, array->count, element);
+}
+
+void M_ArrayCopy(M_Array *src, M_Array *dst)
+{
+    *dst = *src;
+    dst->data = M_Alloc(dst->width, dst->count);
+    M_Copy(dst->data, src->data, src->width*src->count);
+}
+
+void M_ArrayDelete(M_Array *array)
+{
+    M_Free(array->data);
+}
+
+

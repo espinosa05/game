@@ -7,7 +7,7 @@
 
 #define CC      "gcc"
 #define CFLAGS  "-I../../include", "-ggdb", "-Wall", "-std=c99", "-Wextra", "-pedantic", "-Werror", "-c"
-#define LIBNAME "core"
+#define LIBNAME "kiek"
 
 #define AR      "ar"
 #define ARFLAGS "rcs"
