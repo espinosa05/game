@@ -3,29 +3,20 @@
 
 #include <core/types.h>
 #include <core/utils.h>
-#include <core/log.h>
 #include <core/os_streams.h>
 
 #define X_POS_CENTERED (sz)(-1)
 #define Y_POS_CENTERED (sz)(-1)
 
-#define OS_WM_CALL(call)                            \
-    MACRO_START                                     \
-        OS_WmStatus st = call;                      \
-        if (UNLIKELY(OS_WM_STATUS_SUCCESS != st)) { \
-            ERROR_LOG("OS_WM_FAILURE("#call")");    \
-            ABORT();                                \
-        }                                           \
-    MACRO_END
 
-typedef u32 OS_WmStatus;
-enum osWmStatusCodes {
-    OS_WM_STATUS_SUCCESS = 0,
-    OS_WM_STATUS_COULDNT_START,
-    OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED,
+typedef u32 OS_WeStatus;
+enum osWeStatusCodes {
+    OS_WE_STATUS_SUCCESS = 0,
+    OS_WE_STATUS_COULDNT_START,
+    OS_WE_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED,
 
-    OS_WM_STATUS_UNKNOWN,
-    OS_WM_STATUS_COUNT,
+    OS_WE_STATUS_UNKNOWN,
+    OS_WE_STATUS_COUNT,
 };
 
 typedef struct {
@@ -64,14 +55,14 @@ enum osExitCodes {
 #   include "os_macos_defs.h"
 #endif /* CORE_PLATFORM_LINUX */
 
-OS_WmStatus OS_WmInit(OS_WindowManager *wm);
-OS_WmStatus OS_WmShutdown(OS_WindowManager *wm);
+OS_WeStatus OS_WeInit(OS_WindowEnvironment *we);
+OS_WeStatus OS_WeShutdown(OS_WindowEnvironment *we);
 
-OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCreateInfo *info);
-void OS_WmWindowShow(OS_WindowManager *wm, OS_Window *win);
-void OS_WmWindowHide(OS_WindowManager *wm, OS_Window *win);
-void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *title);
-OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win);
+OS_WeStatus OS_WeWindowCreate(OS_WindowEnvironment *we, OS_Window *win, OS_WindowCreateInfo *info);
+void OS_WeWindowShow(OS_WindowEnvironment *we, OS_Window *win);
+void OS_WeWindowHide(OS_WindowEnvironment *we, OS_Window *win);
+void OS_WeWindowChangeTitle(OS_WindowEnvironment *we, OS_Window *win, const char *title);
+OS_WeStatus OS_WeWindowClose(OS_WindowEnvironment *we, OS_Window *win);
 
 OS_ThreadStatus OS_ThreadSpawn(OS_Thread *thr, OS_ThreadFunction func, void *arg);
 OS_ThreadStatus OS_ThreadJoin(OS_Thread *thr, void *ret);

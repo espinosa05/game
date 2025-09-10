@@ -8,6 +8,7 @@
 #define KIEK_ENGINE_ID_STRING "KIEK!"
 
 #define KIEK_TRACE(...) F_LOG_T(OS_STDERR, "KIEK_TRACE", ANSI_COLOR_YELLOW, __VA_ARGS__)
+
 #define VULKAN_SETUP_CHECK(call)                                                        \
     MACRO_START                                                                         \
         VkResult vkRs = call;                                                           \
@@ -92,14 +93,14 @@ static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHe
 
 static void GetRequiredInstanceExtensions(M_Array *requiredExtensions)
 {
-    OS_WindowManagerExtensions wmExtensions = {0};
-    OS_WmGetRequiredExtensions(&wmExtensions);
+    OS_WindowEnvironmentExtensions weExtensions = {0};
+    OS_WeGetRequiredExtensions(&weExtensions);
 
-    M_ArrayInit(requiredExtensions, sizeof(*wmExtensions.names), wmExtensions.count);
-    for (u32 i = 0; i < wmExtensions.count; ++i) {
-        /* don't panic, 'OS_WmGetRequiredExtensions' returns a static string array */
-        KIEK_TRACE("required extension %d:\t%s", i, wmExtensions.names[i]);
-        M_ArrayAppend(requiredExtensions, (void *)wmExtensions.names[i]);
+    M_ArrayInit(requiredExtensions, sizeof(*weExtensions.names), weExtensions.count);
+    for (u32 i = 0; i < weExtensions.count; ++i) {
+        /* don't panic, 'OS_WeGetRequiredExtensions' returns a static string array */
+        KIEK_TRACE("required extension %d:\t%s", i, weExtensions.names[i]);
+        M_ArrayAppend(requiredExtensions, (void *)weExtensions.names[i]);
     }
 }
 
@@ -109,6 +110,9 @@ static void GetRequiredInstanceExtensions(M_Array *requiredExtensions)
 
 static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensions)
 {
+    ASSERT(requiredExtensions.count, "array of size 0 passed!!");
+    ASSERT(requiredExtensions.data, "array pointing to NULL passed!!");
+
     b32 requiredExtensionPresent = FALSE;
     char **requiredExtensionNames = requiredExtensions.data;
     VkExtensionProperties *presentExtensions = NULL;

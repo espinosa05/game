@@ -7,16 +7,16 @@
 typedef struct {
     u32         count;
     const char  **names;
-} OS_WindowManagerExtensions;
+} OS_WindowEnvironmentExtensions;
 
 typedef struct {
     VkSurfaceKHR handle;
 } OS_Surface;
 
 typedef struct {
-    VkInstance          *instance;
-    OS_WindowManager    *wm;
-    OS_Window           *win;
+    VkInstance              *instance;
+    OS_WindowEnvironment    *we;
+    OS_Window               *win;
 } OS_SurfaceCreateInfo;
 
 typedef u32 OS_SurfaceStatus;
@@ -28,9 +28,8 @@ enum osSurfaceStatus {
 #define OS_SURFACE_STATUS_UNKNOWN OS_SURFACE_STATUS_COUNT
 };
 
-void tst(); 
-void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions);
-void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtensions);
+void OS_WeGetRequiredExtensions(OS_WindowEnvironmentExtensions *weExtensions);
+void OS_WeCleanupRequiredExtensions(const OS_WindowEnvironmentExtensions weExtensions);
 OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info);
 
 #endif /* __V2_CORE_OS_VULKAN_H__ */

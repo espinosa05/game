@@ -34,7 +34,7 @@
 
 #define F_LOG_T(file, tag, color, ...)                                                \
     MACRO_START                                                                       \
-        F_LOG(file, "[" color tag ANSI_COLOR_DEFAULT "][" LOC_FMT "]\t: ", LOC_ARG);  \
+        F_LOG(file, "[" color tag ANSI_COLOR_DEFAULT "][" LOC_FMT "] : ", LOC_ARG);   \
         F_LOG(file, __VA_ARGS__);                                                     \
         F_LOG(file, "\n");                                                            \
     MACRO_END

@@ -20,8 +20,7 @@ typedef struct {
 
 char *CStr_Format(char *buffer, usz size, const char *fmt, ...);
 void CStr_FormatAlloc(char **buffer, const char *fmt, ...);
-
-char *CStr_FormatVariadic(char *buffer, usz size, const char *fmt, VA_Args args);
+char *CStr_FormatVariadic(char *buffer, usz size, const char *fmt, VA_Args args, usz *sizeOut);
 void CStr_FormatAllocVariadic(char **buffer, const char *fmt, VA_Args args, usz *length);
 
 #endif /* __CORE_STRINGS_H__ */

@@ -7,7 +7,7 @@
 typedef struct {
     xcb_connection_t    *xcbConnection;
     xcb_screen_t        *xcbScreen;
-} OS_WindowManager;
+} OS_WindowEnvironment;
 
 typedef struct {
     xcb_window_t    xcbWindow;

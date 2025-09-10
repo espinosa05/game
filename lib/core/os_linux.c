@@ -36,71 +36,71 @@ static OS_File __OS_StdOut;
 static OS_File __OS_StdErr;
 /* global data end */
 
-OS_WmStatus OS_WmInit(OS_WindowManager *wm)
+OS_WeStatus OS_WeInit(OS_WindowEnvironment *we)
 {
     xcb_setup_t           *xcbSetup;
     xcb_screen_iterator_t xcbScreens;
 
-    wm->xcbConnection   = xcb_connect(NULL, NULL);
-    xcbSetup            = (xcb_setup_t *)xcb_get_setup(wm->xcbConnection);
+    we->xcbConnection   = xcb_connect(NULL, NULL);
+    xcbSetup            = (xcb_setup_t *)xcb_get_setup(we->xcbConnection);
     xcbScreens          = xcb_setup_roots_iterator(xcbSetup);
-    wm->xcbScreen       = xcbScreens.data;
+    we->xcbScreen       = xcbScreens.data;
 
-    return OS_WM_STATUS_SUCCESS;
+    return OS_WE_STATUS_SUCCESS;
 }
 
-OS_WmStatus OS_WmShutdown(OS_WindowManager *wm)
+OS_WeStatus OS_WeShutdown(OS_WindowEnvironment *we)
 {
-    xcb_disconnect(wm->xcbConnection);
+    xcb_disconnect(we->xcbConnection);
 
-    return OS_WM_STATUS_SUCCESS;
+    return OS_WE_STATUS_SUCCESS;
 }
 
 #define DEFAULT_BORDER_WIDTH        0
 #define DEFAULT_BORDER_COLOR        0
 #define DEFAULT_BACKGROUND_COLOR    0
 
-OS_WmStatus OS_WmWindowCreate(OS_WindowManager *wm, OS_Window *win, OS_WindowCreateInfo *info)
+OS_WeStatus OS_WeWindowCreate(OS_WindowEnvironment *we, OS_Window *win, OS_WindowCreateInfo *info)
 {
     if (!SupportedWindowResolution(info)) {
-        return OS_WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
+        return OS_WE_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
     }
 
-    win->xcbWindow = xcb_generate_id(wm->xcbConnection);
-    xcb_create_window(wm->xcbConnection, XCB_COPY_FROM_PARENT,
+    win->xcbWindow = xcb_generate_id(we->xcbConnection);
+    xcb_create_window(we->xcbConnection, XCB_COPY_FROM_PARENT,
                       win->xcbWindow,
-                      wm->xcbScreen->root,
+                      we->xcbScreen->root,
                       info->xPos,
                       info->yPos,
                       info->width,
                       info->height,
                       DEFAULT_BORDER_WIDTH,
                       XCB_WINDOW_CLASS_INPUT_OUTPUT,
-                      wm->xcbScreen->root_visual,
+                      we->xcbScreen->root_visual,
                       0,
                       NULL);
 
-    OS_WmWindowChangeTitle(wm, win, info->initialTitle);
+    OS_WeWindowChangeTitle(we, win, info->initialTitle);
 
-    return OS_WM_STATUS_SUCCESS;
+    return OS_WE_STATUS_SUCCESS;
 }
 
-void OS_WmWindowShow(OS_WindowManager *wm, OS_Window *win)
+void OS_WeWindowShow(OS_WindowEnvironment *we, OS_Window *win)
 {
-    xcb_map_window(wm->xcbConnection, win->xcbWindow);
-    xcb_flush(wm->xcbConnection);
+    xcb_map_window(we->xcbConnection, win->xcbWindow);
+    xcb_flush(we->xcbConnection);
 }
 
 
-void OS_WmWindowHide(OS_WindowManager *wm, OS_Window *win)
+void OS_WeWindowHide(OS_WindowEnvironment *we, OS_Window *win)
 {
-    xcb_unmap_window(wm->xcbConnection, win->xcbWindow);
-    xcb_flush(wm->xcbConnection);
+    xcb_unmap_window(we->xcbConnection, win->xcbWindow);
+    xcb_flush(we->xcbConnection);
 }
 
 #define UTF8_WIDTH 8
 
-void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *title)
+void OS_WeWindowChangeTitle(OS_WindowEnvironment *we, OS_Window *win, const char *title)
 {
     xcb_intern_atom_cookie_t xcbCookie;
     xcb_intern_atom_reply_t *xcbReply;
@@ -109,21 +109,21 @@ void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *ti
     usz titleLength;
 
     {
-        xcbCookie   = xcb_intern_atom(wm->xcbConnection, 0, CONST_STRLEN("_NET_WM_NAME"), "_NET_WM_NAME");
-        xcbReply    = xcb_intern_atom_reply(wm->xcbConnection, xcbCookie, NULL);
+        xcbCookie   = xcb_intern_atom(we->xcbConnection, 0, CONST_STRLEN("_NET_WM_NAME"), "_NET_WM_NAME");
+        xcbReply    = xcb_intern_atom_reply(we->xcbConnection, xcbCookie, NULL);
         windowName  = xcbReply->atom;
         M_Free(xcbReply);
     }
 
     {
-        xcbCookie   = xcb_intern_atom(wm->xcbConnection, 0, CONST_STRLEN("UTF8_STRING"), "UTF8_STRING");
-        xcbReply    = xcb_intern_atom_reply(wm->xcbConnection, xcbCookie, NULL);
+        xcbCookie   = xcb_intern_atom(we->xcbConnection, 0, CONST_STRLEN("UTF8_STRING"), "UTF8_STRING");
+        xcbReply    = xcb_intern_atom_reply(we->xcbConnection, xcbCookie, NULL);
         utf8String  = xcbReply->atom;
         M_Free(xcbReply);
     }
 
     titleLength = CStr_Length(title);
-    xcb_change_property(wm->xcbConnection,
+    xcb_change_property(we->xcbConnection,
                         XCB_PROP_MODE_REPLACE,
                         win->xcbWindow,
                         windowName,
@@ -132,7 +132,7 @@ void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *ti
                         titleLength,
                         title);
 
-    xcb_change_property(wm->xcbConnection,
+    xcb_change_property(we->xcbConnection,
                         XCB_PROP_MODE_REPLACE,
                         win->xcbWindow,
                         XCB_ATOM_WM_NAME,
@@ -141,35 +141,34 @@ void OS_WmWindowChangeTitle(OS_WindowManager *wm, OS_Window *win, const char *ti
                         titleLength,
                         title);
 
-    xcb_flush(wm->xcbConnection);
+    xcb_flush(we->xcbConnection);
 }
 
-OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win)
+OS_WeStatus OS_WeWindowClose(OS_WindowEnvironment *we, OS_Window *win)
 {
-    xcb_destroy_window(wm->xcbConnection, win->xcbWindow);
-    xcb_flush(wm->xcbConnection);
+    xcb_destroy_window(we->xcbConnection, win->xcbWindow);
+    xcb_flush(we->xcbConnection);
 
-    return OS_WM_STATUS_SUCCESS;
+    return OS_WE_STATUS_SUCCESS;
 }
 
-void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
+void OS_WeGetRequiredExtensions(OS_WindowEnvironmentExtensions *weExtensions)
 {
     static const char *requiredXcbExtensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_XCB_SURFACE_EXTENSION_NAME,
     };
 
-    wmExtensions->count = ARRAY_SIZE(requiredXcbExtensions);
-    wmExtensions->names = requiredXcbExtensions;
+    weExtensions->count = ARRAY_SIZE(requiredXcbExtensions);
+    weExtensions->names = requiredXcbExtensions;
 }
-
 
 OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info)
 {
     VkResult status = -1;
     VkXcbSurfaceCreateInfoKHR createInfo = {
         .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-        .connection = info->wm->xcbConnection,
+        .connection = info->we->xcbConnection,
         .window     = info->win->xcbWindow,
     };
     VkInstance instance = *info->instance;
@@ -437,10 +436,10 @@ void OS_FilePrintf(const OS_File *f, const char *fmt, ...)
 {
     char *msg;
     VA_Args args;
-    usz msgLength;
+    usz msgLength = 0;
 
     VA_Start(args, fmt);
-    CStr_FormatAllocVariadic(&msg, fmt, args, &msgLength);
+    CStr_FormatAllocVariadic(&msg, fmt, args, NULL);
     OS_FileWrite(f, msg, msgLength, msgLength);
     M_Free(msg);
 }
