@@ -75,17 +75,18 @@ M_BufferStatus M_BufferRead(M_Buffer *buffer, void *dst, usz dstCap, usz ammount
 M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammount);
 
 typedef struct {
+    usz     cap;
     usz     count;
     usz     width;
     void    *data;
 } M_Array;
 
 void M_ArrayInit(M_Array *array, usz width, usz initSize);
-void M_ArrayInsert(const M_Array *array, usz index, void *element);
+void M_ArrayInsert(M_Array *array, usz index, void *element);
 void M_ArrayGet(const M_Array *arry, usz index, void *element);
-void M_ArrayAppend(const M_Array *array, void *element);
+void M_ArrayAppend(M_Array *array, void *element);
 void M_ArrayCopy(M_Array *src, M_Array *dst);
-void M_ArrayDelete(M_Array *array);
+void M_ArrayDelete(M_Array array);
 
 void InitPersistentArena(void);
 

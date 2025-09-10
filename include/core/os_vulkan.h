@@ -28,6 +28,7 @@ enum osSurfaceStatus {
 #define OS_SURFACE_STATUS_UNKNOWN OS_SURFACE_STATUS_COUNT
 };
 
+void tst(); 
 void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions);
 void OS_WmCleanupRequiredExtensions(const OS_WindowManagerExtensions wmExtensions);
 OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info);

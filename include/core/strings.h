@@ -16,7 +16,7 @@ typedef struct {
 #define CONST_STRLEN(str)   (sizeof(str)/sizeof(*str)-NULL_TERM_SIZE)
 
 #define CStr_Length(s) strlen(s)
-#define CStr_Compare(s1, s2, n) (0 == strncmp(s1, s2, n))
+#define CStr_Compare(s1, s2) (0 == strcmp(s1, s2))
 
 char *CStr_Format(char *buffer, usz size, const char *fmt, ...);
 void CStr_FormatAlloc(char **buffer, const char *fmt, ...);

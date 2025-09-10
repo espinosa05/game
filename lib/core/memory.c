@@ -61,31 +61,32 @@ M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammoun
 
 void M_ArrayInit(M_Array *array, usz width, usz initSize)
 {
-    array->data     = M_Alloc(width, InitSize);
+    array->data     = M_Alloc(width, initSize);
     array->width    = width;
     array->count    = 0;
     array->cap      = initSize;
 }
 
-void M_ArrayInsert(const M_Array *array, usz index, void *element)
+void M_ArrayInsert(M_Array *array, usz index, void *element)
 {
     if (index > array->cap)
-        array->data = M_Realloc(aray->data, index + 1);
+        array->data = M_Realloc(array->data, array->width, index + 1);
 
     if (index > array->count)
         array->count = index;
 
-    M_Copy(&array->data[index], element, array->width);
+    M_Copy((u8 *)array->data + (index * array->width), element, array->width);
 }
 
-void M_ArrayGet(const M_Array *arry, usz index, void *element)
+void M_ArrayGet(const M_Array *array, usz index, void *element)
 {
-    M_Copy(element, &array->data[index], array->width);
+    M_Copy(element, (u8 *)array->data + (index * array->width), array->width);
 }
 
-void M_ArrayAppend(const M_Array *array, void *element)
+void M_ArrayAppend(M_Array *array, void *element)
 {
     M_ArrayInsert(array, array->count, element);
+    array->count++;
 }
 
 void M_ArrayCopy(M_Array *src, M_Array *dst)
@@ -95,9 +96,10 @@ void M_ArrayCopy(M_Array *src, M_Array *dst)
     M_Copy(dst->data, src->data, src->width*src->count);
 }
 
-void M_ArrayDelete(M_Array *array)
+void M_ArrayDelete(M_Array array)
 {
-    M_Free(array->data);
+    if (array.data && array.count)
+        M_Free(array.data);
 }
 
 

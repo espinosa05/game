@@ -19,29 +19,15 @@
         }                                                                               \
     MACRO_END                                                                           \
 
-typedef struct {
-    u32                     count;
-    char                    **names;
-    VkExtensionProperties   *properties;
-} VulkanInstanceExtensions;
-
 /* static function declaration start */
 static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHeader, Kiek_ApplicationVersionHeader *userArg);
-
-static b32  RequiredInstanceExtensionsPresent(const OS_WindowManagerExtensions extensions);
-static void EnumerateInstanceExtensions(VulkanInstanceExtensions *presentExtensions);
-static void CleanupInstanceExtensions(const VulkanInstanceExtensions presentExtensions);
-
-static void EnumeratePresentDevices(M_Array *presentDevices);
-
-static void SelectSuitableDevice(*M_Array presentDevices, VkPhysicalDevice *suitableDevice);
-
-static void EnumerateQueueCreateExtensions();
+static void GetRequiredInstanceExtensions(M_Array *requiredExtensions);
+static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensions);
 /* static function declaration end */
 
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo)
 {
-    /* Set Application Info */
+    /* set application info */
     Kiek_ApplicationVersionHeader versionHeader = {0};
     SetApplicationVersionHeader(&versionHeader, kvkInfo.appVersionHeader);
     VkApplicationInfo appInfo = {
@@ -52,46 +38,20 @@ void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateI
         .engineVersion      = VK_MAKE_VERSION(KIEK_ENGINE_VERSION_MAJOR, KIEK_ENGINE_VERSION_MINOR, KIEK_ENGINE_VERSION_PATCH),
     };
 
-    OS_WindowManagerExtensions wmExtensions = {0};
-    OS_WmGetRequiredExtensions(&wmExtensions);
-
     /* initialize the Vulkan API */
-    ASSERT_RT(RequiredInstanceExtensionsPresent(wmExtensions)); // works!!
+    M_Array instanceExtensions = {0};
+    GetRequiredInstanceExtensions(&instanceExtensions);
+    ASSERT_RT(RequiredInstanceExtensionsPresent(instanceExtensions), "required vulkan extensions not available"); // works!!
     VkInstanceCreateInfo instanceInfo = {
         .sType                      = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo           = &appInfo,
-        .enabledExtensionCount      = wmExtensions.count,
-        .ppEnabledExtensionNames    = wmExtensions.names,
+        .enabledExtensionCount      = instanceExtensions.count,
+        .ppEnabledExtensionNames    = instanceExtensions.data,
     };
     VULKAN_SETUP_CHECK(vkCreateInstance(&instanceInfo, NULL, &kvk->instance));
-    OS_WmCleanupRequiredExtensions(wmExtensions);
+    M_ArrayDelete(instanceExtensions);
 
-    /* query available device specs */
-    M_Array presentDevices = {0};
-    VkPhysicalDevice suitableDevice = VK_NULL_HANDLE;
-    EnumeratePresentDevices(&presentDevices);
-    SelectSuitableDevice(presentDevices, &suitableDevice);
-    M_ArrayDelete(presentDevices);
-
-    /* get suitable device information */
-    M_Array queueCreateInfos = {0};
-    M_Array deviceExtensions = {0};
-    EnumerateQueueCreateInfos(suitableDevice, &queueCreateInfos);
-    EnumerateDeviceExtensions(suitableDevice, &deviceExtensions);
-
-    /* create logical device handle */
-    VkDeviceCreateInfo deviceInfo = {
-        .sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount       = queueCreateInfos.count,
-        .pQueueCreateInfos          = queueCreateInfos.data,
-        .enabledExtensionCount      = deviceExtensions.count,
-        .ppEnabledExtensionNames    = deviceExtensions.data,
-        .pEnabledFeatures           = &deviceEnabledFeatures,
-    };
-    VULKAN_SETUP_CHECK(vkCreateDevice(suitableDevice, &deviceInfo, NULL, &kvk->logicalDevice.handle));
-
-    M_ArrayDelete(queueCreateInfos);
-    M_ArrayDelete(deviceExtensions);
+    ABORT();
 }
 
 void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk)
@@ -120,93 +80,68 @@ static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHe
         *versionHeader = *userArg;
     }
 
-    KIEK_TRACE("KIEK!-Vulkan-App Information\n"
-               "\tKiek-Version-Major\t:%d\n",
-               "\tKiek-Version-Minor\t:%d\n",
+    KIEK_TRACE("\nKIEK!-Vulkan-App Information\n"
+               "\tKiek-Version-Major\t:%d\n"
+               "\tKiek-Version-Minor\t:%d\n"
                "\tKiek-Version-Patch\t:%d\n",
                versionHeader->major,
                versionHeader->minor,
                versionHeader->patch);
 }
 
-static b32 RequiredInstanceExtensionsPresent(const OS_WindowManagerExtensions extensions)
-{
-    b32 requiredExtensionPresent;
-    VulkanInstanceExtensions presentExtensions = {0};
-    EnumerateInstanceExtensions(&presentExtensions);
 
-    for (u32 i = 0; i < extensions.count; ++i) {
+static void GetRequiredInstanceExtensions(M_Array *requiredExtensions)
+{
+    OS_WindowManagerExtensions wmExtensions = {0};
+    OS_WmGetRequiredExtensions(&wmExtensions);
+
+    M_ArrayInit(requiredExtensions, sizeof(*wmExtensions.names), wmExtensions.count);
+    for (u32 i = 0; i < wmExtensions.count; ++i) {
+        /* don't panic, 'OS_WmGetRequiredExtensions' returns a static string array */
+        KIEK_TRACE("required extension %d:\t%s", i, wmExtensions.names[i]);
+        M_ArrayAppend(requiredExtensions, (void *)wmExtensions.names[i]);
+    }
+}
+
+#define GET_MAJOR_VERSION(ver)  (((u32)(ver)>>22U)&0xFF)
+#define GET_MINOR_VERSION(ver)  (((u32)(ver)>>12U)&0xFF)
+#define GET_PATCH(ver)          (ver&0xFF)
+
+static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensions)
+{
+    b32 requiredExtensionPresent = FALSE;
+    char **requiredExtensionNames = requiredExtensions.data;
+    VkExtensionProperties *presentExtensions = NULL;
+    u32 presentExtensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensionCount, NULL);
+    KIEK_TRACE("extension count %d", presentExtensionCount);
+    presentExtensions = M_Alloc(sizeof(*presentExtensions), presentExtensionCount);
+    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensionCount, presentExtensions);
+
+    KIEK_TRACE("present extensions:");
+    for (u32 i = 0; i < requiredExtensions.count; ++i) {
         requiredExtensionPresent = FALSE;
-        for (u32 j = 0; j < presentExtensions.count; ++j) {
-            usz extensionLength = CStr_Length(presentExtensions.names[j]);
-            if (CStr_Compare(extensions.names[i], presentExtensions.names[j], extensionLength)) {
+        for (u32 j = 0; j < presentExtensionCount; ++j) {
+            KIEK_TRACE("- %s", presentExtensions[j].extensionName);
+            KIEK_TRACE("present %d -> %s | required %d -> %s", i, presentExtensions[j].extensionName, j, requiredExtensionNames[i]);
+            if (CStr_Compare(requiredExtensionNames[i], presentExtensions[j].extensionName)) {
+                KIEK_TRACE("extension \"%s\" for spec version %d.%d.%d found",
+                            GET_MAJOR_VERSION(presentExtensions[j].specVersion),
+                            GET_MINOR_VERSION(presentExtensions[j].specVersion),
+                            GET_PATCH(presentExtensions[j].specVersion),
+                            presentExtensions[j].extensionName);
+
                 requiredExtensionPresent = TRUE;
                 break;
             }
         }
-
         if (FALSE == requiredExtensionPresent) {
             break;
         }
     }
-    CleanupInstanceExtensions(presentExtensions);
 
+    M_Free(presentExtensions);
     return requiredExtensionPresent;
 }
 
-static void EnumerateInstanceExtensions(VulkanInstanceExtensions *presentExtensions)
-{
-    presentExtensions->count         = 0;
-    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensions->count, NULL);
-    presentExtensions->properties    = M_Alloc(sizeof(*presentExtensions->properties),  presentExtensions->count);
-    presentExtensions->names         = M_Alloc(sizeof(*presentExtensions->names),       presentExtensions->count);
-    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensions->count, presentExtensions->properties);
 
-    TODO("Create Dynamic Array implementation for properties!");
-    for (u32 i = 0; i < presentExtensions->count; ++i) {
-        presentExtensions->names[i] = presentExtensions->properties[i].extensionName;
-    }
-
-}
-
-static void CleanupInstanceExtensions(const VulkanInstanceExtensions presentExtensions)
-{
-    M_Free(presentExtensions.names);
-    M_Free(presentExtensions.properties);
-}
-
-static void EnumerateDevices(VulkanDevices *presentDevices)
-{
-    presentDevices->count   = 0;
-    VULKAN_SETUP_CHECK(vkEnumeratePhysicalDevices(NULL, &presentDevices->count, NULL));
-    presentDevices->handles = M_Alloc(sizeof(*presentDevices->handles), presentDevices->count);
-    vkEnumeratePhysicalDevices(NULL, &presentDevices->count, presentDevices->handles);
-}
-
-static void CleanupDevices(const VulkanDevices presentDevices)
-{
-    M_Free(presentDevices.handles);
-}
-
-static void EnumerateDeviceExtensions(const VkPhysicalDevice device, VulkanDeviceExtensions *deviceExtensions)
-{
-    deviceExtensions->count         = 0;
-    vkEnumerateDeviceExtensionProperties(device, NULL, &deviceExtensions->count);
-    deviceExtensions->properties    = M_Alloc(sizeof(*deviceExtensions->properties), deviceExtensions->count);
-}
-
-static void CleanupDeviceExtensions(const VulkanDeviceExtensions deviceExtensions)
-{
-    M_Free(deviceExtensions.properties);
-}
-
-static void GetSuitableDevice(VulkanDeviceData *deviceData)
-{
-    VulkanDevices devices = {0};
-    EnumerateDevices(&devices);
-
-    for (u32 i = 0; i < devices.count; ++i) {
-        VulkanDeviceExtensions deviceExtensions = {0}
-        EnumerateDeviceExtensions(&deviceExtensions);
-    }
-}

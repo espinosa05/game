@@ -6,17 +6,17 @@
 #include <core/log.h>
 
 typedef struct {
-    VkDevice                            handle;
     VkPhysicalDeviceProperties          properties;
     VkPhysicalDeviceFeatures            features;
     VkPhysicalDeviceMemoryProperties    memoryProperties;
-} Kiek_VulkanDeviceContext;
+} Kiek_VulkanDeviceData;
 
 typedef struct {
     /* Vulkan API instance */
-    VkInstance                  instance;
+    VkInstance              instance;
     /* Vulkan Device information */
-    Kiek_VulkanDeviceContext    logicalDevice;
+    VkDevice                logicalDevice;
+    Kiek_VulkanDeviceData   deviceData;
 } Kiek_VulkanContext;
 
 typedef struct {

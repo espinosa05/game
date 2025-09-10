@@ -10,6 +10,8 @@
 #include <core/cstd.h>
 #include <core/linux.h>
 #include <core/vulkan.h>
+#include <core/os_vulkan.h>
+
 
 
 #define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
@@ -148,6 +150,35 @@ OS_WmStatus OS_WmWindowClose(OS_WindowManager *wm, OS_Window *win)
     xcb_flush(wm->xcbConnection);
 
     return OS_WM_STATUS_SUCCESS;
+}
+
+void OS_WmGetRequiredExtensions(OS_WindowManagerExtensions *wmExtensions)
+{
+    static const char *requiredXcbExtensions[] = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+    };
+
+    wmExtensions->count = ARRAY_SIZE(requiredXcbExtensions);
+    wmExtensions->names = requiredXcbExtensions;
+}
+
+
+OS_SurfaceStatus OS_SurfaceCreate(OS_Surface *surface, const OS_SurfaceCreateInfo *info)
+{
+    VkResult status = -1;
+    VkXcbSurfaceCreateInfoKHR createInfo = {
+        .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+        .connection = info->wm->xcbConnection,
+        .window     = info->win->xcbWindow,
+    };
+    VkInstance instance = *info->instance;
+    status = vkCreateXcbSurfaceKHR(instance, &createInfo, NULL, &surface->handle);
+    if (status != VK_SUCCESS) {
+        return OS_SURFACE_STATUS_FAILED_TO_CREATE_SURFACE;
+    }
+
+    return OS_SURFACE_STATUS_SUCCESS;
 }
 
 enum threadStatus { THREAD_FAILED = -1, THREAD_CREATED = 0, };
