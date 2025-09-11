@@ -5,7 +5,7 @@
 #include <core/memory.h>
 #include <core/cli.h>
 
-#include <kiek/kiek_vulkan.h>
+#include <kiek/kiek_vulkan_backend.h>
 
 typedef struct {
     CLI_Args    args;

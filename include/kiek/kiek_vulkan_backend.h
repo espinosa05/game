@@ -1,5 +1,5 @@
-#ifndef __KIEK_VULKAN_H__
-#define __KIEK_VULKAN_H__
+#ifndef __KIEK_VULKAN_BACKEND_H__
+#define __KIEK_VULKAN_BACKEND_H__
 
 #include <core/vulkan.h>
 #include <core/utils.h>
@@ -46,4 +46,4 @@ typedef struct {
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo);
 void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk);
 
-#endif /* __KIEK_VULKAN_H__ */
+#endif /* __KIEK_VULKAN_BACKEND_H__ */
