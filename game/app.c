@@ -12,8 +12,8 @@ enum WindowState {
 typedef struct {
     usz         mainWindowWidth;
     usz         mainWindowHeight;
-    const char  *configPath;
     usz         mainWindowInitState;
+    const char  *configPath;
 } App_Config;
 
 /* static function declaration start */
@@ -29,11 +29,7 @@ void App_Init(App_Context *app, const App_ContextCreateInfo *info)
     TODO("ParseConfigFile");
     GetAppArena(&app->memoryArena);
 
-    Kiek_ApplicationVersionHeader version = {
-        .major = 0,
-        .minor = 0,
-        .patch = 1,
-    };
+    Kiek_ApplicationVersionHeader version = {0, 0, 1};
     Kiek_VulkanContextCreateInfo kvkInfo = {
         .appName            = info->name,
         .appVersionHeader   = &version,
@@ -93,7 +89,8 @@ static void ParseCliArgs(App_Config *conf, const CLI_Args args)
         CLI_OptResult option = {0};
         option = CLI_GetOpt(cliOptions, ARRAY_SIZE(cliOptions), &i, args);
         if (!CLI_GETOPT_SUCCESS(option)) {
-            ERROR_LOG("failed to parse option: %s : (0x%X) %s", args.v[option.optInd], option.errCode, CLI_GetOptStringError(option.errCode));
+            ERROR_LOG("failed to parse option: "STR_FMT" : (0x"USZ_X_FMT") "STR_FMT,
+                      args.v[option.optInd], option.errCode, CLI_GetOptStringError(option.errCode));
             OS_Exit(OS_EXIT_FAILURE);
         }
 

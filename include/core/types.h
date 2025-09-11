@@ -57,6 +57,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define U16_X_FMT   "%04"PRIx16
 #define U32_X_FMT   "%08"PRIx32
 #define U64_X_FMT   "%016"PRIx64
+#define USZ_X_FMT   "%llx" /* special case without leading 0 */
 
 #define STR_FMT     "%s"
 

@@ -18,7 +18,7 @@
                                                         string_VkResult(vkRs));         \
             ABORT();                                                                    \
         }                                                                               \
-    MACRO_END                                                                           \
+    MACRO_END
 
 /* static function declaration start */
 static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHeader, Kiek_ApplicationVersionHeader *userArg);
