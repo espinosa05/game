@@ -22,8 +22,9 @@
 
 /* static function declaration start */
 static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHeader, Kiek_ApplicationVersionHeader *userArg);
-static void GetRequiredInstanceExtensions(M_Array *requiredExtensions);
-static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensions);
+static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames);
+static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionsArray);
+static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensionsArray);
 /* static function declaration end */
 
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo)
@@ -41,7 +42,7 @@ void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateI
 
     /* initialize the Vulkan API */
     M_Array instanceExtensions = {0};
-    GetRequiredInstanceExtensions(&instanceExtensions);
+    GetRequiredInstanceExtensionNames(&instanceExtensions);
     ASSERT_RT(RequiredInstanceExtensionsPresent(instanceExtensions), "required vulkan extensions not available"); // works!!
     VkInstanceCreateInfo instanceInfo = {
         .sType                      = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -91,7 +92,7 @@ static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHe
 }
 
 
-static void GetRequiredInstanceExtensions(M_Array *requiredExtensions)
+static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames)
 {
     OS_WindowEnvironmentExtensions weExtensions = {0};
     OS_WeGetRequiredExtensions(&weExtensions);
@@ -108,40 +109,25 @@ static void GetRequiredInstanceExtensions(M_Array *requiredExtensions)
 #define GET_MINOR_VERSION(ver)  (((u32)(ver)>>12U)&0xFF)
 #define GET_PATCH(ver)          (ver&0xFF)
 
-static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensions)
+static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionsArray)
+{
+    u32 count = 0;
+    VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
+    M_ArrayInit(presentExtensions, sizeof(VkExtensionProperties), count);
+    VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, presentExtensions.data));
+}
+
+static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensionsArray)
 {
     ASSERT(requiredExtensions.count, "array of size 0 passed!!");
     ASSERT(requiredExtensions.data, "array pointing to NULL passed!!");
 
-    b32 requiredExtensionPresent = FALSE;
-    char **requiredExtensionNames = requiredExtensions.data;
-    VkExtensionProperties *presentExtensions = NULL;
-    u32 presentExtensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensionCount, NULL);
-    KIEK_TRACE("extension count %d", presentExtensionCount);
-    presentExtensions = M_Alloc(sizeof(*presentExtensions), presentExtensionCount);
-    vkEnumerateInstanceExtensionProperties(NULL, &presentExtensionCount, presentExtensions);
+    M_Array presentExtensionsArray = {0};
+    GetPresentInstanceExtensionProperties(&presentExtensions);
 
-    KIEK_TRACE("present extensions:");
-    for (u32 i = 0; i < requiredExtensions.count; ++i) {
-        requiredExtensionPresent = FALSE;
-        for (u32 j = 0; j < presentExtensionCount; ++j) {
-            KIEK_TRACE("- %s", presentExtensions[j].extensionName);
-            KIEK_TRACE("present %d -> %s | required %d -> %s", i, presentExtensions[j].extensionName, j, requiredExtensionNames[i]);
-            if (CStr_Compare(requiredExtensionNames[i], presentExtensions[j].extensionName)) {
-                KIEK_TRACE("extension \"%s\" for spec version %d.%d.%d found",
-                            GET_MAJOR_VERSION(presentExtensions[j].specVersion),
-                            GET_MINOR_VERSION(presentExtensions[j].specVersion),
-                            GET_PATCH(presentExtensions[j].specVersion),
-                            presentExtensions[j].extensionName);
-
-                requiredExtensionPresent = TRUE;
-                break;
-            }
-        }
-        if (FALSE == requiredExtensionPresent) {
-            break;
-        }
+    for (u32 i = 0; i < presentExtensions.count; ++i) {
+        VkExtensionProperties presentExtension = presentExtensionsArray[i];
+        VkExtensionProperties requiredExtension = requiredExtensionsArray[i];
     }
 
     M_Free(presentExtensions);
