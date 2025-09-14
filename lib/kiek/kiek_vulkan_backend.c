@@ -23,12 +23,14 @@
 /* static function declaration start */
 static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHeader, Kiek_ApplicationVersionHeader *userArg);
 static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames);
-static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionsArray);
-static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensionsArray);
+static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionArray);
+static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensionNameArray);
 /* static function declaration end */
 
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo)
 {
+    KIEK_TRACE("yarrak");
+    ABORT();
     /* set application info */
     Kiek_ApplicationVersionHeader versionHeader = {0};
     SetApplicationVersionHeader(&versionHeader, kvkInfo.appVersionHeader);
@@ -77,7 +79,7 @@ void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk)
 static void SetApplicationVersionHeader(Kiek_ApplicationVersionHeader *versionHeader, Kiek_ApplicationVersionHeader *userArg)
 {
     *versionHeader = KIEK_APPLICATION_VERSION_HEADER_DEFAULT;
-    if (userArg) {
+    if (!userArg) {
         KIEK_TRACE("No \"KIEK!\" application version passed! falling back to default Testing version...");
         *versionHeader = *userArg;
     }
@@ -97,11 +99,11 @@ static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames)
     OS_WindowEnvironmentExtensions weExtensions = {0};
     OS_WeGetRequiredExtensions(&weExtensions);
 
-    M_ArrayInit(requiredExtensions, sizeof(*weExtensions.names), weExtensions.count);
+    M_ArrayInit(requiredExtensionNames, sizeof(*weExtensions.names), weExtensions.count);
     for (u32 i = 0; i < weExtensions.count; ++i) {
         /* don't panic, 'OS_WeGetRequiredExtensions' returns a static string array */
         KIEK_TRACE("required extension %d:\t%s", i, weExtensions.names[i]);
-        M_ArrayAppend(requiredExtensions, (void *)weExtensions.names[i]);
+        M_ArrayAppend(requiredExtensionNames, (void *)weExtensions.names[i]);
     }
 }
 
@@ -109,29 +111,41 @@ static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames)
 #define GET_MINOR_VERSION(ver)  (((u32)(ver)>>12U)&0xFF)
 #define GET_PATCH(ver)          (ver&0xFF)
 
-static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionsArray)
+static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionArray)
 {
     u32 count = 0;
     VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
-    M_ArrayInit(presentExtensions, sizeof(VkExtensionProperties), count);
-    VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, presentExtensions.data));
+    M_ArrayInit(presentExtensionArray, sizeof(VkExtensionProperties), count);
+    VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, presentExtensionArray->data));
 }
 
-static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensionsArray)
+static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensionNameArray)
 {
-    ASSERT(requiredExtensions.count, "array of size 0 passed!!");
-    ASSERT(requiredExtensions.data, "array pointing to NULL passed!!");
+    ASSERT(requiredExtensionNameArray.count,    "array of size 0 passed!!");
+    ASSERT(requiredExtensionNameArray.data,     "array pointing to NULL passed!!");
 
-    M_Array presentExtensionsArray = {0};
-    GetPresentInstanceExtensionProperties(&presentExtensions);
+    M_Array presentExtensionArray = {0};
+    GetPresentInstanceExtensionProperties(&presentExtensionArray);
 
-    for (u32 i = 0; i < presentExtensions.count; ++i) {
-        VkExtensionProperties presentExtension = presentExtensionsArray[i];
-        VkExtensionProperties requiredExtension = requiredExtensionsArray[i];
+    char **requiredExtensionNames = requiredExtensionNameArray.data;
+    VkExtensionProperties *presentExtensions = presentExtensionArray.data;
+
+    b32 requiredExtensionsPresent = FALSE;
+    for (u32 i = 0; i < requiredExtensionNameArray.count; ++i) {
+        requiredExtensionsPresent = FALSE;
+        for (u32 j = 0; j < presentExtensionArray.count; ++j) {
+            if (CStr_Compare(presentExtensions[j].extensionName, requiredExtensionNames[i])) {
+                requiredExtensionsPresent = TRUE;
+                break;
+            }
+        }
+        if (!requiredExtensionsPresent) {
+            break;
+        }
     }
 
     M_Free(presentExtensions);
-    return requiredExtensionPresent;
+    return requiredExtensionsPresent;
 }
 
 

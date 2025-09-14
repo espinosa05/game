@@ -1,7 +1,9 @@
 #include <core/os.h>
+#include <core/os_dynamic_library.h>
 #include <core/os_streams.h>
 #include <core/os_file.h>
 #include <core/os_socket.h>
+#include <core/os_vulkan.h>
 
 #include <core/utils.h>
 #include <core/strings.h>
@@ -10,8 +12,6 @@
 #include <core/cstd.h>
 #include <core/linux.h>
 #include <core/vulkan.h>
-#include <core/os_vulkan.h>
-
 
 
 #define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
@@ -36,10 +36,46 @@ static OS_File __OS_StdOut;
 static OS_File __OS_StdErr;
 /* global data end */
 
+void OS_OpenLibrary(OS_Library *lib, const OS_LibraryCreateInfo *info)
+{
+    ASSERT(info->name, "No library name passed!");
+
+    if (!info->path)
+        info->path = "./";
+
+    char *actualPathStr = NULL;
+    {
+        Str_Builder wholePath = {0};
+        Str_BuilderInit(&wholePath, pathconf(info->path, _PC_PATH_MAX));
+        Str_BuilderAppend(&wholePath, info->path);
+        Str_BuilderAppend(&wholePath, info->name);
+        Str_BuilderAppend(&wholePath, ".so");
+        Str_BuilderToCStrAlloc(&wholePath, &actualPathStr);
+        Str_BuilderDelete(wholePath);
+    }
+
+    *lib = dlopen(actualPathStr, RTLD_LAZY);
+    ASSERT_RT(*lib, "failed to open dynamic library: %s", dlerror());
+
+    M_Free(actualPathStr);
+}
+
+void OS_LoadLibrarySymbol(OS_Library *lib, void **dst, const char *symbol)
+{
+   *dst = dlsym(lib, symbol);
+   ASSERT_RT(*dst, "failed to load symbol %s: %s", symbol, dlerror());
+}
+
+void OS_CloseLibrary(OS_Library lib)
+{
+    int st = dlclose(lib);
+    ASSERT_RT(st == 0, "failed to close dynamic library: %s", dlerror());
+}
+
 OS_WeStatus OS_WeInit(OS_WindowEnvironment *we)
 {
-    xcb_setup_t           *xcbSetup;
-    xcb_screen_iterator_t xcbScreens;
+    xcb_setup_t             *xcbSetup;
+    xcb_screen_iterator_t   xcbScreens;
 
     we->xcbConnection   = xcb_connect(NULL, NULL);
     xcbSetup            = (xcb_setup_t *)xcb_get_setup(we->xcbConnection);
@@ -67,7 +103,8 @@ OS_WeStatus OS_WeWindowCreate(OS_WindowEnvironment *we, OS_Window *win, OS_Windo
     }
 
     win->xcbWindow = xcb_generate_id(we->xcbConnection);
-    xcb_create_window(we->xcbConnection, XCB_COPY_FROM_PARENT,
+    xcb_create_window(we->xcbConnection,
+                      XCB_COPY_FROM_PARENT,
                       win->xcbWindow,
                       we->xcbScreen->root,
                       info->xPos,
@@ -195,10 +232,10 @@ OS_ThreadStatus OS_ThreadSpawn(OS_Thread *thr, OS_ThreadFunction func, void *arg
 
     ASSERT_RT(stackBuffer != MAP_FAILED, "failed to allocate stack for new process");
 
-    cloneArgs.flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND;
-    cloneArgs.exit_signal = SIGCHLD;
-    cloneArgs.stack = (u64)stackBuffer;
-    cloneArgs.stack_size = stackSize.rlim_cur;
+    cloneArgs.flags         = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND;
+    cloneArgs.exit_signal   = SIGCHLD;
+    cloneArgs.stack         = (u64)stackBuffer;
+    cloneArgs.stack_size    = stackSize.rlim_cur;
 
     thr->pid = syscall(SYS_clone3, &cloneArgs, sizeof(cloneArgs));
 
