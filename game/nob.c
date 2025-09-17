@@ -16,10 +16,17 @@
 
 #define CC      "gcc"
 #define CFLAGS  "-I../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
-#define LIBNAME "core"
 
-#define LD      "ld"
-#define LDFLAGS "-shared"
+#define AR      "ar"
+#define ARFLAGS "rcs"
+
+#ifdef LIB_SHARED
+#   define LIB_EXT ".so"
+#else
+#   define LIB_EXT ".a"
+#endif
+
+#define LIBNAME "game"
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
@@ -79,7 +86,18 @@ void parse_options(int argc, char **argv)
     }
 }
 
-void build_library(void)
+void link_game_archive(Nob_File_Paths obj_files)
+{
+    Nob_Cmd link_cmd = {0};
+    nob_cmd_append(&link_cmd, AR, ARFLAGS);
+    nob_cmd_append(&link_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
+    for (int i = 0; i < obj_files.count; ++i) {
+        nob_cmd_append(&link_cmd, obj_files.items[i]);
+    }
+    NOB_ASSERT(nob_cmd_run_sync(link_cmd));
+}
+
+void build_game(void)
 {
     Nob_Procs comp_threads = {0};
     Nob_Cmd comp_cmd = {0};
@@ -103,13 +121,16 @@ void build_library(void)
         nob_da_append(&comp_threads, nob_cmd_run_async_and_reset(&comp_cmd));
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
+
+    link_game_archive(obj_files);
 }
+
 
 int main(int argc, char **argv)
 {
     NOB_GO_REBUILD_URSELF(argc, argv);
     parse_options(argc, argv);
-    build_library();
+    build_game();
 
     return EXIT_SUCCESS;
 }

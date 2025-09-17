@@ -40,8 +40,9 @@ void OS_OpenLibrary(OS_Library *lib, const OS_LibraryCreateInfo *info)
 {
     ASSERT(info->name, "No library name passed!");
 
-    if (!info->path)
-        info->path = "./";
+    char *path = info->path;
+    if (!path)
+        path = "./";
 
     char *actualPathStr = NULL;
     {

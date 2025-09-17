@@ -3,10 +3,10 @@
 
 #include <core/platform.h>
 
-#if defined(PLATFORM_LINUX)
+#if defined(CORE_PLATFORM_LINUX)
 typedef void *OS_Library;
 
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(CORE_PLATFORM_WINDOWS)
 #include <libloaderapi.h>
 typedef HMODULE OS_Library;
 #else
@@ -14,12 +14,13 @@ typedef HMODULE OS_Library;
 #endif /**/
 
 typedef struct {
-    const char *path;
-    const char *name;
+    char *path;
+    char *name;
 } OS_LibraryCreateInfo;
 
 void OS_OpenLibrary(OS_Library *lib, const OS_LibraryCreateInfo *info);
-void OS_LoadLibrarySymbol(const OS_Library *lib, void **dst, const char *symbol);
-void OS_CloseLibrary(const OS_Library *lib);
+void OS_LoadLibrarySymbol(OS_Library *lib, void **dst, const char *symbol);
+void OS_CloseLibrary(OS_Library lib);
+
 
 #endif /* __OS_DYNAMIC_LIBRARY_H__ */

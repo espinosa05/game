@@ -10,11 +10,11 @@ void Str_BuilderInit(Str_Builder *sb, usz initCap)
 
 void Str_BuilderAppend(Str_Builder *sb, char *str)
 {
-    ASSERT(sb->count + 1 <= cap, "string builder corrupted!");
+    ASSERT(sb->count + 1 <= sb->cap, "string builder corrupted!");
 
-    if (sb->count + 1 == cap) {
-        cap++;
-        sb->elements = M_Realloc(sb->elements, sizeof(*sb->elements), cap);
+    if (sb->count + 1 == sb->cap) {
+        sb->cap++;
+        sb->elements = M_Realloc(sb->elements, sizeof(*sb->elements), sb->cap);
     }
     sb->elements[sb->count] = str;
     sb->count++;
@@ -38,13 +38,18 @@ void Str_BuilderToCStrAlloc(Str_Builder *sb, char **dst)
     for (usz i = 1; i < sb->count; ++i) {
         /* reallocate the buffer */
         base = M_Realloc(base, sizeof(*sb->elements), buffLength);
-        CStr_Copy(cursor, sb->element[i]);
+        CStr_Copy(cursor, sb->elements[i], elementLength);
         NULL_TERM_BUFF(cursor, elementLength);
         cursor += elementLength;
         buffLength += elementLength;
     }
 
     *dst = base;
+}
+
+void Str_BuilderDelete(const Str_Builder sb)
+{
+    M_Free(sb.elements);
 }
 
 char *CStr_FormatVariadic(char *buffer, usz size, const char *fmt, VA_Args args, usz *sizeOut)

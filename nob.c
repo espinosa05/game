@@ -9,7 +9,7 @@
 
 #define GAME_DIR "game/"
 
-#define LINKS   "-lcore", "-lkiek", "-lxcb", "-lvulkan"
+#define LINKS   "-lgame", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -73,7 +73,7 @@ char *src_path_to_obj_path(char *c_file)
     return o_file;
 }
 
-void copy_shared_libraries(void)
+void copy_libraries(void)
 {
     for (int i = 0; i < NOB_ARRAY_LEN(lib_names); ++i) {
         Nob_Cmd copy_cmd = {0};
@@ -120,7 +120,7 @@ void build_libraries(void)
     NOB_ASSERT(nob_set_current_dir_log(base_dir));
     nob_temp_reset();
 
-    copy_shared_libraries();
+    copy_libraries();
 }
 
 void clean_libs(void)
@@ -190,6 +190,17 @@ void parse_options(int argc, char **argv)
     }
 }
 
+void copy_game_archive()
+{
+    Nob_Cmd copy_cmd = {0};
+    /* copy from game out archive */
+    nob_cmd_append(&copy_cmd, "cp", GAME_DIR OUT_DIR "libgame.a");
+    /* into the project out directory */
+    nob_cmd_append(&copy_cmd, OUT_DIR);
+
+    nob_cmd_run_sync_and_reset(&copy_cmd);
+}
+
 void build_application()
 {
     const char *base_dir = nob_get_current_dir_temp();
@@ -204,31 +215,14 @@ void build_application()
 
     NOB_ASSERT(nob_set_current_dir(base_dir));
 
+    copy_game_archive();
     nob_temp_reset();
 }
 
 void link_executable()
 {
-    /* copy the game object files */
-    {
-        Nob_Cmd game_copy_cmd = {0};
-
-        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "start.o", OUT_DIR);
-        nob_cmd_run_sync_and_reset(&game_copy_cmd);
-
-        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "main.o", OUT_DIR);
-        nob_cmd_run_sync_and_reset(&game_copy_cmd);
-
-
-        nob_cmd_append(&game_copy_cmd, "cp", GAME_DIR OUT_DIR "app.o", OUT_DIR);
-        nob_cmd_run_sync_and_reset(&game_copy_cmd);
-    }
-
     Nob_Cmd game_link_cmd = {0};
     nob_cmd_append(&game_link_cmd, CC);
-    nob_cmd_append(&game_link_cmd, OUT_DIR "start.o");
-    nob_cmd_append(&game_link_cmd, OUT_DIR "app.o");
-    nob_cmd_append(&game_link_cmd, OUT_DIR "main.o");
     nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
     nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
     nob_cmd_run_sync(game_link_cmd);

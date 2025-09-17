@@ -20,6 +20,7 @@ typedef struct {
 void Str_BuilderInit(Str_Builder *sb, usz initCap);
 void Str_BuilderAppend(Str_Builder *sb, char *str);
 void Str_BuilderToCStrAlloc(Str_Builder *sb, char **dst);
+void Str_BuilderDelete(const Str_Builder sb);
 
 #define NULL_TERM_SIZE 1
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'
