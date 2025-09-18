@@ -65,7 +65,6 @@ void CStr_FormatAllocVariadic(char **buffer, const char *fmt, VA_Args args, usz 
 {
     usz allocSize = 0;
     CStr_FormatVariadic(NULL, allocSize, fmt, args, &allocSize);
-    fprintf(stderr, "allocsize -> %lu\n", allocSize);
     *buffer = M_Alloc(BYTE_SIZE, allocSize);
     CStr_FormatVariadic(*buffer, allocSize, fmt, args, NULL);
 

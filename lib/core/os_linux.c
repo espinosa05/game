@@ -438,6 +438,7 @@ static void OS_FileInitProcIOHandles(void)
     OS_STDIN    = &__OS_StdIn;
     OS_STDOUT   = &__OS_StdOut;
     OS_STDERR   = &__OS_StdErr;
+    fprintf(stderr, "initialized I/O OS_File handles!\n");
 }
 
 void OS_FileOpen(OS_File *f, const OS_FileCreateInfo *info)
@@ -477,7 +478,7 @@ void OS_FilePrintf(const OS_File *f, const char *fmt, ...)
     usz msgLength = 0;
 
     VA_Start(args, fmt);
-    CStr_FormatAllocVariadic(&msg, fmt, args, NULL);
+    CStr_FormatAllocVariadic(&msg, fmt, args, &msgLength);
     OS_FileWrite(f, msg, msgLength, msgLength);
     M_Free(msg);
 }

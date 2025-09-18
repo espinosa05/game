@@ -29,8 +29,6 @@ static b32  RequiredInstanceExtensionsPresent(const M_Array requiredExtensionNam
 
 void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateInfo kvkInfo)
 {
-    KIEK_TRACE("yarrak");
-    ABORT();
     /* set application info */
     Kiek_ApplicationVersionHeader versionHeader = {0};
     SetApplicationVersionHeader(&versionHeader, kvkInfo.appVersionHeader);
@@ -54,8 +52,6 @@ void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateI
     };
     VULKAN_SETUP_CHECK(vkCreateInstance(&instanceInfo, NULL, &kvk->instance));
     M_ArrayDelete(instanceExtensions);
-
-    ABORT();
 }
 
 void Kiek_VulkanShutdown(Kiek_VulkanContext *kvk)
