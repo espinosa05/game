@@ -23,7 +23,6 @@
 
 #define __INIT_FUNCTION__ /* empty attribute (more for book keeping) */
 
-#define STR_SYM(sym)    #sym
 #define TODO(...)       F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
 #define IMPL()          TODO("IMPLEMENT FUNCTION")
 #define ARRAY_SIZE(a)   (sizeof(a)/sizeof(*a))
@@ -46,6 +45,13 @@
             F_LOG(OS_STDERR, "\n");                                             \
             ABORT();                                                            \
         }                                                                       \
+    MACRO_END
+
+#define THROW_EXCEPTION(...)                                            \
+    MACRO_START                                                         \
+        F_LOG_T(OS_STDERR, "EXCEPTION", ANSI_COLOR_RED, __VA_ARGS__);   \
+        F_LOG(OS_STDERR, "\n");                                         \
+        ABORT();                                                        \
     MACRO_END
 
 #define UNREACHABLE()                                           \

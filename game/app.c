@@ -26,7 +26,7 @@ void App_Init(App_Context *app, const App_ContextCreateInfo *info)
 {
     App_Config conf = {0};
     ParseCliArgs(&conf, info->args);
-    TODO("ParseConfigFile");
+    //TODO("ParseConfigFile");
     GetAppArena(&app->memoryArena);
 
     Kiek_ApplicationVersionHeader version = {0, 0, 1};
@@ -96,8 +96,8 @@ static void ParseCliArgs(App_Config *conf, const CLI_Args args)
 
         switch (option.id) {
         case OPT_HELP:
-            LOG("Usage: %s [OPTIONS]\n", *args.v);
-            LOG("Options:\n");
+            LOG("Usage: "STR_FMT" [OPTIONS]"STR_NL, *args.v);
+            LOG("Options:"STR_NL);
             PrintOptions(cliOptions, ARRAY_SIZE(cliOptions));
             OS_Exit(OS_EXIT_SUCCESS);
         case OPT_CONF:

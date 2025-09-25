@@ -54,7 +54,9 @@ void Str_BuilderDelete(const Str_Builder sb)
 
 char *CStr_FormatVariadic(char *buffer, usz size, const char *fmt, VA_Args args, usz *sizeOut)
 {
-    usz bytesToBeWritten = vsnprintf(buffer, size, fmt, args);
+    fprintf(stderr, "calling vsnprintf with buffer=%p, size=%lu, fmt=%p, args=%p\n", buffer, size, fmt, (void *)args);
+
+    usz bytesToBeWritten = vsnprintf(buffer, 0, fmt, args);
     if (sizeOut)
         *sizeOut = bytesToBeWritten;
 
@@ -64,10 +66,7 @@ char *CStr_FormatVariadic(char *buffer, usz size, const char *fmt, VA_Args args,
 void CStr_FormatAllocVariadic(char **buffer, const char *fmt, VA_Args args, usz *length)
 {
     usz allocSize = 0;
-    CStr_FormatVariadic(NULL, allocSize, fmt, args, &allocSize);
-    *buffer = M_Alloc(BYTE_SIZE, allocSize);
-    CStr_FormatVariadic(*buffer, allocSize, fmt, args, NULL);
-
+    allocSize = vasprintf(buffer, fmt, args);
     if (length)
         *length = allocSize;
 }
@@ -77,7 +76,7 @@ void CStr_FormatAlloc(char **buffer, const char *fmt, ...)
     VA_Args args;
     VA_Start(args, fmt);
 
-    CStr_FormatAllocVariadic(buffer, fmt , args, NULL);
+    CStr_FormatAllocVariadic(buffer, fmt, args, NULL);
 }
 
 char *CStr_Format(char *buffer, usz size, const char *fmt, ...)

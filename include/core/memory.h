@@ -75,6 +75,14 @@ M_BufferStatus M_BufferRead(M_Buffer *buffer, void *dst, usz dstCap, usz ammount
 M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammount);
 
 typedef struct {
+    usz width;
+    usz count;
+    usz cap;
+    void *base;
+} M_ArrayCreateInfo;
+
+typedef struct {
+    b32     heap;
     usz     cap;
     usz     count;
     usz     width;
@@ -82,6 +90,7 @@ typedef struct {
 } M_Array;
 
 void M_ArrayInit(M_Array *array, usz width, usz initSize);
+void M_ArrayInitExt(M_Array *array, M_ArrayCreateInfo arrayInfo);
 void M_ArrayInsert(M_Array *array, usz index, void *element);
 void M_ArrayGet(const M_Array *arry, usz index, void *element);
 void M_ArrayAppend(M_Array *array, void *element);

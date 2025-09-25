@@ -59,12 +59,25 @@ M_BufferStatus M_BufferWrite(M_Buffer *buffer, void *dst, usz dstCap, usz ammoun
     return M_BUFFER_STATUS_SUCCESS;
 }
 
+void M_ArrayInitExt(M_Array *array, M_ArrayCreateInfo arrayInfo)
+{
+    array->data = arrayInfo.base;
+    if (!array->data) {
+        array->heap = TRUE;
+        array->data = M_Alloc(arrayInfo.width, arrayInfo.cap);
+    }
+
+    array->width    = arrayInfo.width;
+    array->cap      = arrayInfo.cap;
+    array->count    = arrayInfo.count;
+}
+
 void M_ArrayInit(M_Array *array, usz width, usz initSize)
 {
     array->data     = M_Alloc(width, initSize);
     array->width    = width;
-    array->count    = 0;
     array->cap      = initSize;
+    array->count    = 0;
 }
 
 void M_ArrayInsert(M_Array *array, usz index, void *element)
@@ -98,7 +111,8 @@ void M_ArrayCopy(M_Array *src, M_Array *dst)
 
 void M_ArrayDelete(M_Array array)
 {
-    if (array.data && array.count)
+    ASSERT(array.data, "uninitialized array!!");
+    if (array.heap)
         M_Free(array.data);
 }
 

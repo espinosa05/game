@@ -95,16 +95,17 @@ static void GetRequiredInstanceExtensionNames(M_Array *requiredExtensionNames)
     OS_WindowEnvironmentExtensions weExtensions = {0};
     OS_WeGetRequiredExtensions(&weExtensions);
 
-    M_ArrayInit(requiredExtensionNames, sizeof(*weExtensions.names), weExtensions.count);
-    for (u32 i = 0; i < weExtensions.count; ++i) {
-        /* don't panic, 'OS_WeGetRequiredExtensions' returns a static string array */
-        KIEK_TRACE("required extension %d:\t%s", i, weExtensions.names[i]);
-        M_ArrayAppend(requiredExtensionNames, (void *)weExtensions.names[i]);
-    }
+    M_ArrayCreateInfo requiredExtensionNamesInfo = {
+        .width  = sizeof(*weExtensions.names),
+        .base   = weExtensions.names,
+        .cap    = weExtensions.count,
+        .count  = weExtensions.count,
+    };
+    M_ArrayInitExt(requiredExtensionNames, requiredExtensionNamesInfo);
 }
 
-#define GET_MAJOR_VERSION(ver)  (((u32)(ver)>>22U)&0xFF)
-#define GET_MINOR_VERSION(ver)  (((u32)(ver)>>12U)&0xFF)
+#define GET_MAJOR_VERSION(ver)  (((u32)(ver)<<22U)&0xFF)
+#define GET_MINOR_VERSION(ver)  (((u32)(ver)<<12U)&0xFF)
 #define GET_PATCH(ver)          (ver&0xFF)
 
 static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionArray)
@@ -113,6 +114,17 @@ static void GetPresentInstanceExtensionProperties(M_Array *presentExtensionArray
     VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
     M_ArrayInit(presentExtensionArray, sizeof(VkExtensionProperties), count);
     VULKAN_SETUP_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, presentExtensionArray->data));
+    /* hacky */
+    presentExtensionArray->count = count;
+}
+
+static void PrintInstanceExtensionPropertyNames(M_Array presentExtensionArray)
+{
+    VkExtensionProperties *presentExtensions = presentExtensionArray.data;
+    KIEK_TRACE("present extensions:");
+    for (usz i = 0; i < presentExtensionArray.count; ++i) {
+        F_LOG(OS_STDERR, "\t[%02d] %s\n", i, presentExtensions[i].extensionName);
+    }
 }
 
 static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensionNameArray)
@@ -122,6 +134,7 @@ static b32 RequiredInstanceExtensionsPresent(const M_Array requiredExtensionName
 
     M_Array presentExtensionArray = {0};
     GetPresentInstanceExtensionProperties(&presentExtensionArray);
+    PrintInstanceExtensionPropertyNames(presentExtensionArray);
 
     char **requiredExtensionNames = requiredExtensionNameArray.data;
     VkExtensionProperties *presentExtensions = presentExtensionArray.data;

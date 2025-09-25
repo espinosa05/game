@@ -22,6 +22,14 @@ void Str_BuilderAppend(Str_Builder *sb, char *str);
 void Str_BuilderToCStrAlloc(Str_Builder *sb, char **dst);
 void Str_BuilderDelete(const Str_Builder sb);
 
+#define STR_NL  "\n"
+#define STR_TAB "\t"
+
+#define STR_SYM(s) #s
+#define STR_SYM_FMT(s) #s": %s"
+#define STR_SYM_ARG(s) STR_SYM(s)
+#define STR_SYM_MSG(s) STR_SYM_FMT(s) STR_SYM_ARG(s)
+
 #define NULL_TERM_SIZE 1
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'
 #define CONST_STRLEN(str)   (sizeof(str)/sizeof(*str)-NULL_TERM_SIZE)
