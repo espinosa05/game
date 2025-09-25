@@ -43,7 +43,7 @@ void Kiek_VulkanStartup(Kiek_VulkanContext *kvk, const Kiek_VulkanContextCreateI
     /* initialize the Vulkan API */
     M_Array instanceExtensions = {0};
     GetRequiredInstanceExtensionNames(&instanceExtensions);
-    ASSERT_RT(RequiredInstanceExtensionsPresent(instanceExtensions), "required vulkan extensions not available"); // works!!
+    ASSERT_RT(RequiredInstanceExtensionsPresent(instanceExtensions), "required vulkan extensions not available");
     VkInstanceCreateInfo instanceInfo = {
         .sType                      = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo           = &appInfo,
@@ -123,7 +123,7 @@ static void PrintInstanceExtensionPropertyNames(M_Array presentExtensionArray)
     VkExtensionProperties *presentExtensions = presentExtensionArray.data;
     KIEK_TRACE("present extensions:");
     for (usz i = 0; i < presentExtensionArray.count; ++i) {
-        F_LOG(OS_STDERR, "\t[%02d] %s\n", i, presentExtensions[i].extensionName);
+        LOG("\t[%02d] %s\n", i, presentExtensions[i].extensionName);
     }
 }
 
