@@ -3,10 +3,9 @@
 
 #define IS_ARG(a, v) (0 == strcmp((a), (v)))
 
+
 #define OUT_DIR "out/"
 #define LIB_DIR "lib/"
-#define INC_DIR "include/"
-
 #define GAME_DIR "game/"
 
 #define LINKS   "-lgame", "-lkiek", "-lcore", "-lxcb", "-lvulkan"

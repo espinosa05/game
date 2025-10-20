@@ -1,0 +1,3 @@
+[submodule "lib/libcore"]
+	path = lib/libcore
+	url = https://github.com/espinosa05/libcore
