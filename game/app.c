@@ -3,112 +3,109 @@
 #include <core/os.h>
 #include <core/os_file.h>
 
-enum WindowState {
+enum window_state {
     WINDOW_STATE_WINDOWED,
     WINDOW_STATE_FULLSCREEN,
     WINDOW_STATE_BORDERLESS_WINDOW,
 };
 
-typedef struct {
-    usz         mainWindowWidth;
-    usz         mainWindowHeight;
-    usz         mainWindowInitState;
-    const char  *configPath;
-} App_Config;
+struct app_config {
+    usz         main_window_width;
+    usz         main_window_height;
+    usz         main_window_state;
+    const char  *config_path;
+};
 
 /* static function declaration start */
-static void GetAppArena(M_Arena **arena);
-static void PrintOptions(const CLI_Opt *opts, usz count);
-static void ParseCliArgs(App_Config *conf, const CLI_Args args);
+static void init_app_arena(struct app *app);
+static void parse_args(struct app_config *conf, const struct cli_args args);
+static void parse_conf(struct app_config *conf, const char *config_path);
 /* static function declaration end */
 
-void App_Init(App_Context *app, const App_ContextCreateInfo *info)
+void app_init(struct app *app, const struct app_info info)
 {
-    App_Config conf = {0};
-    ParseCliArgs(&conf, info->args);
-    //TODO("ParseConfigFile");
-    GetAppArena(&app->memoryArena);
+    init_app_arena(app);
 
-    Kiek_ApplicationVersionHeader version = {0, 0, 1};
-    Kiek_VulkanContextCreateInfo kvkInfo = {
-        .appName            = info->name,
-        .appVersionHeader   = &version,
-    };
-    Kiek_VulkanStartup(&app->kvk, kvkInfo);
+    struct app_config config = {0};
+    struct app_scenes scenes = {0};
+
+    parse_args(&config, info->args);
+    parse_conf(&config, config->config_path);
+
+    app->config = config;
+    app->scenes = scenes;
 }
 
-void App_Run(App_Context *app)
+void app_run(struct app *app)
 {
     UNUSED(app);
 }
 
-void App_Cleanup(App_Context *app)
+void app_cleanup(struct app *app)
 {
-    Kiek_VulkanShutdown(&app->kvk);
+    UNUSED(app);
 }
 
-static void GetAppArena(M_Arena **arena)
+#define MEMORY_ARENA_SIZE (MB_SIZE*100)
+static void init_app_arena(struct app *app)
 {
-    static u8 appArenaBuffer[2*MB_SIZE];
-    static M_Arena appArena = {0};
-    static b32 onceFlag = FALSE;
-    ASSERT_RT(onceFlag == FALSE, "The function was meant to be called once!");
+    static b32 once_flag = FALSE;
+    ASSERT_RT(once_flag == FALSE, "[BUG] function is meant to be called only once!");
 
-    M_ArenaCreateInfo appArenaInfo = {
+    static struct m_arena arena = {0};
+    static struct m_arena_info arena_info = {
         .external   = TRUE,
-        .buffer     = appArenaBuffer,
-        .memSize    = ARRAY_SIZE(appArenaBuffer),
+        .buffer     = (static u8[MEMORY_ARENA_SIZE]) {0},
+        .mem_size   = MEMORY_ARENA_SIZE,
     };
-    M_ArenaInit(&appArena, &appArenaInfo);
-    *arena = &appArena;
 
-    onceFlag = TRUE;
+    m_arena_init(&arena, arena_info);
+    app->memory_arena = &arena;
+
+    once_flag = TRUE;
 }
 
-static void PrintOptions(const CLI_Opt *opts, usz count)
+static void parse_args(struct app_config *conf, const struct cli_args args)
 {
-    for (usz i = 0; i < count - CLI_OPT_NULL_ENTRY; ++i) {
-        LOG("\x20-%c, --%s\t%s\n", opts[i].shortOpt,
-                                     opts[i].longOpt,
-                                     opts[i].desc);
-    }
-}
-
-enum {OPT_HELP, OPT_CONF, OPT_WINR,};
-static void ParseCliArgs(App_Config *conf, const CLI_Args args)
-{
-    CLI_Opt cliOptions[] = {
-        {OPT_HELP, 'h', "help",     NO_ARGUMENT,        "prints this screen",},
-        {OPT_CONF, 'c', "config",   REQUIRED_ARGUMENT,  "sets a custom config path: '-c CONFIG_FILE', '--config CONFIG_FILE'",},
-        {OPT_WINR, 'w', "winres",   REQUIRED_ARGUMENT,  "sets a custom resolution: '-w WIDTHxHEIGHT', '--winres WIDTHxHEIGHT', "
-                                                        "use '--winres help' to get a list of supported resolutions"},
+    enum opt_ids {
+        OPT_HELP,
+        OPT_VERS,
+        OPT_RSLN,
+        OPT_WNST,
+    };
+    struct cli_opt opts[] = {
+        { OPT_HELP, 'h', "help", false, "prints help screen", },
+        { OPT_VERS, 'v', "version", false "prints version information", },
+        { OPT_RSLN, 'r', "resolution", true, "sets custom startup resolution. Usage: -r [WIDTH]x[HEIGHT], --resolution [WIDTH]x[HEIGHT]", },
+        { OPT_WNST, 'w', "window_state", true, "forces a window state at startup. Usage: -w [fullscreen:windowed:borderless], --window_state [fullscreen:windowed:borderless]", },
         {0},
     };
 
-    for (usz i = 1; i < args.c; ) {
-        CLI_OptResult option = {0};
-        option = CLI_GetOpt(cliOptions, ARRAY_SIZE(cliOptions), &i, args);
-        if (!CLI_GETOPT_SUCCESS(option)) {
-            ERROR_LOG("failed to parse option: "STR_FMT" : (0x"USZ_X_FMT") "STR_FMT,
-                      args.v[option.optInd], option.errCode, CLI_GetOptStringError(option.errCode));
-            OS_Exit(OS_EXIT_FAILURE);
-        }
+    for (usz i = 0; i < ARRAY_SIZE(opts); ) {
+        struct cli_opt_result result = cli_getopt(&opts, ARRAY_SIZE(opts), &i, args);
+        ASSERT_RT(CLI_GETOP_SUCCESS(result), "failed to parse commandline option \"%s\": %s",
+                                             args.v[i],
+                                             cli_getopt_string_error(result.err_code));
 
-        switch (option.id) {
+        switch (result.id) {
         case OPT_HELP:
-            LOG("Usage: "STR_FMT" [OPTIONS]"STR_NL, *args.v);
-            LOG("Options:"STR_NL);
-            PrintOptions(cliOptions, ARRAY_SIZE(cliOptions));
-            OS_Exit(OS_EXIT_SUCCESS);
-        case OPT_CONF:
-            conf->configPath = option.arg;
+            TODO("OPT_HELP");
             break;
-        case OPT_WINR:
-            TODO("setting resolution is not supported yet!");
-            INFO_LOG("continuing without custom resolution...");
+        case OPT_VERS:
+            TODO("OPT_VERS");
             break;
-        default: UNREACHABLE();
+        case OPT_RSLN:
+            TODO("OPT_RSLN");
+            break;
+        case OPT_WNST:
+            TODO("OPT_WNST");
+            break;
         }
     }
 }
 
+static void parse_conf(struct app_config *conf, const char *config_path)
+{
+    UNUSED(conf);
+    UNUSED(config_path);
+}

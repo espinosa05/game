@@ -5,20 +5,23 @@
 #include <core/memory.h>
 #include <core/cli.h>
 
-#include <kiek/kiek_vulkan_backend.h>
+struct app_info {
+    struct cli_args args;
+    const char *name;
+};
 
-typedef struct {
-    CLI_Args    args;
-    const char  *name;
-} App_ContextCreateInfo;
+struct app_scenes {
+    struct scene *scene;
+    usz count;
+};
 
-typedef struct {
-    Kiek_VulkanContext  kvk;
-    M_Arena             *memoryArena;
-} App_Context;
+struct app {
+    struct app_scenes   scenes;
+    struct m_arena      *memory_arena;
+};
 
-void App_Init(App_Context *app, const App_ContextCreateInfo *info);
-void App_Run(App_Context *app);
-void App_Cleanup(App_Context *app);
+void app_init(struct *app, const struct app_info info);
+void app_run(struct *app);
+void app_cleanup(struct *app);
 
 #endif /* __APP_H__ */
