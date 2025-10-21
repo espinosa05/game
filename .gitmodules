@@ -1,3 +1,6 @@
 [submodule "lib/libcore"]
 	path = lib/libcore
 	url = https://github.com/espinosa05/libcore
+[submodule "lib/libkiek"]
+	path = lib/libkiek
+	url = https://github.com/espinosa05/libkiek
