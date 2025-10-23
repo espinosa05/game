@@ -3,10 +3,10 @@ set -x
 
 cc nob.c -o nob
 cd lib/
-    cd core/
+    cd libcore/core
         cc nob.c -o nob
     cd ../
-    cd kiek/
+    cd libkiek/kiek
         cc nob.c -o nob
     cd ../
 cd ../
