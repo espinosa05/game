@@ -78,7 +78,7 @@ void copy_libraries(void)
         Nob_Cmd copy_cmd = {0};
         Nob_String_Builder src_path = {0};
 
-        nob_sb_appendf(&src_path, "%s%s/out/lib%s.a",
+        nob_sb_appendf(&src_path, "%slib%s/out/lib%s.a",
                        LIB_DIR, lib_names[i], lib_names[i]);
         nob_sb_append_null(&src_path);
 
@@ -91,6 +91,16 @@ void copy_libraries(void)
 
 }
 
+bool is_required_dependency(char *libname)
+{
+    for (int i = 0; i < NOB_ARRAY_LEN(lib_names); ++i) {
+        if (0 == strcmp(libname + strlen("lib"), lib_names[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void build_libraries(void)
 {
     Nob_Procs build_threads = {0};
@@ -100,6 +110,9 @@ void build_libraries(void)
 
     base_dir = nob_get_current_dir_temp();
     NOB_ASSERT(nob_read_entire_dir(LIB_DIR, &lib_deps));
+
+    /* pointer to start of dependency array. Gets incremented after each dependency hit */
+    const char **required_dep = lib_names;
     for (int i = 0; i < lib_deps.count; ++i) {
         Nob_String_Builder lib_dir_path = {0};
         /* we skip hidden files, "." and ".." */
@@ -107,13 +120,21 @@ void build_libraries(void)
             nob_log(NOB_INFO, "skipping -> %s", lib_deps.items[i]);
             continue;
         }
+        /* check whether the directory is part of our dependencies */
+        if (!is_required_dependency(lib_deps.items[i])) {
+            nob_log(NOB_INFO, "skipping -> %s, as it's not a required dependency!", lib_deps.items[i]);
+            continue;
+        }
         /* for every path in LIB_DIR, change path and "./nob" */
-        nob_sb_appendf(&lib_dir_path, "%s%s", LIB_DIR, lib_deps.items[i]);
+        nob_sb_appendf(&lib_dir_path, "%s%s/%s", LIB_DIR, lib_deps.items[i], *required_dep);
         nob_sb_append_null(&lib_dir_path);
         NOB_ASSERT(nob_set_current_dir_log(lib_dir_path.items));
         nob_cmd_append(&build_cmd, "./nob");
         nob_da_append(&build_threads, nob_cmd_run_async_and_reset(&build_cmd));
         NOB_ASSERT(nob_set_current_dir_log(base_dir));
+
+        /* get to next dependency entry */
+        required_dep++;
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&build_threads));
     NOB_ASSERT(nob_set_current_dir_log(base_dir));
@@ -222,7 +243,7 @@ void link_executable()
 {
     Nob_Cmd game_link_cmd = {0};
     nob_cmd_append(&game_link_cmd, CC);
-    nob_cmd_append(&game_link_cmd, "-L./"OUT_DIR, LINKS);
+    nob_cmd_append(&game_link_cmd, "-L./" OUT_DIR, LINKS);
     nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
     nob_cmd_run_sync(game_link_cmd);
 }
