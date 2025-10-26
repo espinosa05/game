@@ -3,11 +3,15 @@ set -x
 
 cc nob.c -o nob
 cd lib/
-    cd libcore/core
-        cc nob.c -o nob
+    cd libcore/
+        cd core/
+            cc nob.c -o nob
+        cd ../
     cd ../
-    cd libkiek/kiek
-        cc nob.c -o nob
+    cd libkiek/
+        cd kiek/
+            cc nob.c -o nob
+        cd ../
     cd ../
 cd ../
 
