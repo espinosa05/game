@@ -2,35 +2,33 @@
 #include <core/os_dynamic_library.h>
 #include <core/log.h>
 
-typedef void (*Function_Pointer)(void);
+void (*start) (void);
+void (*run) (void);
+void (*shutdown) (void);
 
-Function_Pointer start;
-Function_Pointer run;
-Function_Pointer shutdown;
+struct os_librar test_lib;
+struct os_library_info test_lib_info;
 
-OS_Library testLib;
-OS_LibraryCreaetInfo testLibInfo;
-
-void InitFunctions(void)
+void init_functions(void)
 {
     start       = NULL;
     run         = NULL;
     shutdown    = NULL;
     LOG_INFO("init test...");
 
-    testLibInfo.path = "./";
-    testLibInfo.name = "test";
-    OS_OpenLibrary(&testLib, &testLibInfo);
-    OS_LoadLibrarySymbol(&testLib, &start,      "TestStartFunc");
-    OS_LoadLibrarySymbol(&testLib, &run,        "TestRunFunc");
-    OS_LoadLibrarySymbol(&testLib, &shutdown,   "TestShutdownFunc");
+    test_lib_info.path = "./";
+    test_lib_info.name = "test";
+    os_open_library(&test_lib, &test_lib_info);
+    os_load_library_symbol(&test_lib, &start,      "test_start_func");
+    os_load_library_symbol(&test_lib, &run,        "test_run_func");
+    os_load_library_symbol(&test_lib, &shutdown,   "test_shutdown_func");
 
     ASSERT(start,       "start function NULL!!");
     ASSERT(run,         "run function NULL!!");
     ASSERT(shutdown,    "shutdown function NULL!!");
 }
 
-void RunFunctions(void)
+void run_functions(void)
 {
     LOG_INFO("running test...");
     start();
@@ -39,17 +37,17 @@ void RunFunctions(void)
     LOG_INFO("test complete!");
 }
 
-void Cleanup(void)
+void cleanup(void)
 {
     LOG_INFO("finishing test...");
-    OS_CloseLibrary(&testLib);
+    os_close_library(&test_lib);
 }
 
 int main(void)
 {
-    InitFunctions();
-    RunFunctions();
-    Cleanup();
+    init_functions();
+    run_functions();
+    cleanup();
 
     return 0;
 }

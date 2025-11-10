@@ -8,7 +8,7 @@
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lgame", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
+#define LINKS   "-lgame", "-lyuhml", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -23,6 +23,7 @@ static const char *ignore_list[] = {
 static const char *lib_names[] = {
     "core",
     "kiek",
+    "yuhml",
 };
 
 static bool run_project_executable;
@@ -78,8 +79,8 @@ void copy_libraries(void)
         Nob_Cmd copy_cmd = {0};
         Nob_String_Builder src_path = {0};
 
-        nob_sb_appendf(&src_path, "%slib%s/out/lib%s.a",
-                       LIB_DIR, lib_names[i], lib_names[i]);
+        nob_sb_appendf(&src_path, "%slib%s/%s/out/lib%s.a",
+                       LIB_DIR, lib_names[i], lib_names[i], lib_names[i]);
         nob_sb_append_null(&src_path);
 
         nob_cmd_append(&copy_cmd, "cp", src_path.items, OUT_DIR);
@@ -126,7 +127,7 @@ void build_libraries(void)
             continue;
         }
         /* for every path in LIB_DIR, change path and "./nob" */
-        nob_sb_appendf(&lib_dir_path, "%s%s/%s", LIB_DIR, lib_deps.items[i], *required_dep);
+        nob_sb_appendf(&lib_dir_path, "%slib%s/%s", LIB_DIR, *required_dep, *required_dep);
         nob_sb_append_null(&lib_dir_path);
         NOB_ASSERT(nob_set_current_dir_log(lib_dir_path.items));
         nob_cmd_append(&build_cmd, "./nob");
