@@ -1,5 +1,6 @@
 #include "app.h"
 
+#include <core/platform.h>
 #include <core/os.h>
 #include <core/os_file.h>
 #include <core/utils.h>
@@ -13,49 +14,44 @@ enum window_state {
 
 /* static function declaration start */
 static void default_app_config(struct app_config *conf);
-static void init_app_arena(struct app *app);
+static void init_app_memory(struct app_memory *memory);
+
 static void parse_args(struct app_config *conf, const struct cli_args args);
 static void parse_conf(struct app_config *conf, const char *config_path);
-static void register_scenes(struct app *app, struct scene_callbacks *callbacks, usz count);
+
+static void scene_context_info_init(struct scene_context_info *info, const struct app_memory memory);
 /* static function declaration end */
 
 void app_init(struct app *app, const struct app_info info)
 {
-    init_app_arena(app);
-
     struct app_config config = {0};
     default_app_config(&config);
 
     parse_args(&config, info.args);
     parse_conf(&config, config.config_path);
-    struct scene_callbacks scene_callbacks[SCENE_COUNT]
-#if 0
-        = {
-        [INTRO_SCENE]   = { init_intro_scene, update_intro_scene, close_intro_scene, },
-        [MENU_SCENE]    = { init_menu_scene, update_menu_scene, close_menu_scene, },
-        [GAME_SCENE]    = { init_game_scene, update_game_scene, close_game_scene, },
-    }
-#endif
-    ;
-    ASSERT_EQ(SCENE_COUNT, ARRAY_SIZE(scene_callbacks));
-    register_scenes(app, scene_callbacks, SCENE_COUNT);
+
+    struct app_memory memory = {0};
+    init_app_memory(&memory);
+
+    struct scene_context scene_context = {0};
+    struct scene_context_info scene_context_info = {0};
+    scene_context_info_init(&scene_context_info, memory);
+    scene_context_init(&scene_context, scene_context_info);
 
     app->config = config;
-    app->run    = TRUE;
+    app->memory = memory;
+    app->scene_context = scene_context;
 }
 
 void app_run(struct app *app)
 {
-    while (app->run) {
-        os_sleep_sec(3);
-        app->run = false;
-    }
+    UNUSED(app);
 }
 
-void app_cleanup(struct app *app)
+void app_cleanup(const struct app app)
 {
-    INFO_LOG("cleaning up!");
     UNUSED(app);
+    INFO_LOG("cleaning up!");
 }
 
 #define DEFAULT_WINDOW_WIDTH 1200
@@ -73,39 +69,41 @@ static void default_app_config(struct app_config *conf)
     };
 }
 
-#define PERMANENT_MEMORY_ARENA_SIZE (MB_SIZE*100)
-#define TRANSIENT_MEMORY_ARENA_SIZE (MB_SIZE*200)
-static void init_app_arena(struct app *app)
-{
-    static b32 once_flag = FALSE;
-    ASSERT_RT(once_flag == FALSE, "[BUG] function is meant to be called only once!");
+#define PERMANENT_MEMORY_ARENA_SIZE (KB_SIZE*100)
+#define TRANSIENT_MEMORY_ARENA_SIZE (KB_SIZE*200)
 
-    /* buffers for the memory arenas */
-    static u8 ALIGNED(WORD_SIZE) permanent_memory[PERMANENT_MEMORY_ARENA_SIZE] = {0};
-    static u8 ALIGNED(WORD_SIZE) transient_memory[TRANSIENT_MEMORY_ARENA_SIZE] = {0};
+static struct {
+    /* per scene memory */
+    u8 ALIGNED(WORD_SIZE) permanent_memory[PERMANENT_MEMORY_ARENA_SIZE];
+    /* per scene tick memory */
+    u8 ALIGNED(WORD_SIZE) transient_memory[TRANSIENT_MEMORY_ARENA_SIZE];
+} g_memory_pools;
+
+#define APP_MEMORY_ARENA_SIZE (KB_SIZE*1)
+static void init_app_memory(struct app_memory *memory)
+{
+    ASSERT_RUN_ONCE();
 
     /* memory arena that is reset after every tick */
-    static struct m_arena transient_arena = {0};
+    struct m_arena transient_arena = {0};
     struct m_arena_info transient_arena_info = {
         .external   = TRUE,
-        .buffer     = transient_memory,
+        .buffer     = g_memory_pools.transient_memory,
         .mem_size   = TRANSIENT_MEMORY_ARENA_SIZE,
     };
     m_arena_init(&transient_arena, transient_arena_info);
 
-    /* memory arena that's kept for each scene */
-    static struct m_arena permanent_arena = {0};
+    /* memory arena that's reset for each new scene */
+    struct m_arena permanent_arena = {0};
     struct m_arena_info permanent_arena_info = {
         .external   = TRUE,
-        .buffer     = permanent_memory,
+        .buffer     = g_memory_pools.permanent_memory,
         .mem_size   = PERMANENT_MEMORY_ARENA_SIZE,
     };
     m_arena_init(&permanent_arena, permanent_arena_info);
 
-    app->transient_arena = &transient_arena;
-    app->permanent_arena = &permanent_arena;
-
-    once_flag = TRUE;
+    memory->transient = transient_arena;
+    memory->permanent = permanent_arena;
 }
 
 static void parse_args(struct app_config *conf, const struct cli_args args)
@@ -156,8 +154,9 @@ static void parse_conf(struct app_config *conf, const char *config_path)
     UNUSED(config_path);
 }
 
-static void register_scenes(struct app *app, struct scene_callbacks *callbacks, usz count)
-{
-    m_copy(app->scene_callbacks, callbacks, sizeof(*callbacks)*count);
-}
 
+static void scene_context_info_init(struct scene_context_info *info,  const struct app_memory memory)
+{
+    info->transient_arena = memory.transient;
+    info->permanent_arena = memory.permanent;
+}

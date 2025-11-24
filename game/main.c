@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 
     app_init(&app, app_info);
     app_run(&app);
-    app_cleanup(&app);
+    app_cleanup(app);
 
     return EXIT_SUCCESS;
 }

@@ -276,6 +276,7 @@ int main(int argc, char **argv)
     if (run_project_executable) {
         run_project();
     }
+
     return EXIT_SUCCESS;
 }
 

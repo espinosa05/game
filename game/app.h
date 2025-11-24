@@ -6,6 +6,7 @@
 #include <core/cli.h>
 
 #include "scene.h"
+#include "game_scenes.h"
 
 enum scene_ids {
     MENU_SCENE  = 0,
@@ -27,19 +28,20 @@ struct app_config {
     const char  *config_path;
 };
 
+struct app_memory {
+    struct m_arena transient;
+    struct m_arena permanent;
+};
+
 struct app {
-    b32 run;
-
-    struct m_arena          *transient_arena;
-    struct m_arena          *permanent_arena;
-    struct scene_callbacks  scene_callbacks[SCENE_COUNT];
-    struct scene_context    *scene_context;
-
+    struct app_memory       memory;
     struct app_config       config;
+
+    struct scene_context    scene_context;
 };
 
 void app_init(struct app *app, const struct app_info info);
 void app_run(struct app *app);
-void app_cleanup(struct app *app);
+void app_cleanup(const struct app app);
 
 #endif /* __APP_H__ */

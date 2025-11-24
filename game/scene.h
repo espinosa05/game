@@ -5,13 +5,17 @@
 #include <core/sparse_set.h>
 
 struct scene_context {
+    struct m_arena transient_arena;
+    struct m_arena permanent_arena;
+
     struct sparse_index_set entity_id_set;
 };
 
-struct scene_callbacks {
-    void (*init_scene) (struct scene_context *);
-    void (*update_scene) (struct scene_context *);
-    void (*close_scene) (struct scene_context *);
+struct scene_context_info {
+    struct m_arena transient_arena;
+    struct m_arena permanent_arena;
 };
 
+
+void scene_context_init(struct scene_context *scene, const struct scene_context_info info);
 #endif /* __SCENE_H__ */
