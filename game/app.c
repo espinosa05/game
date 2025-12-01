@@ -50,7 +50,8 @@ void app_run(struct app *app)
 
 void app_cleanup(const struct app app)
 {
-    UNUSED(app);
+    struct scene_context scene_context = app.scene_context;
+    UNUSED(scene_context);
     INFO_LOG("cleaning up!");
 }
 

@@ -4,15 +4,12 @@
 #include <core/log.h>
 #include <core/utils.h>
 
-
-void init_game_scene(struct scene_context *scene)
+void update_systems()
 {
-    UNUSED(scene);
-    INFO_LOG("GAME SYSTEM INIT");
+
 }
 
-void close_game_scene(struct scene_context *scene)
+void load_game(struct scene_context *scene)
 {
-    INFO_LOG("GAME SYSTEM CLOSE");
     UNUSED(scene);
 }
