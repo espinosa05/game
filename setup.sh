@@ -13,11 +13,6 @@ cd lib/
             cc nob.c -o nob
         cd ../
     cd ../
-    cd libyuhml/
-        cd yuhml/
-            cc nob.c -o nob
-        cd ../
-    cd ../
 cd ../
 
 cd game
