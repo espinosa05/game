@@ -8,15 +8,30 @@ struct cdb_context_info {
     struct m_arena *arena;
 };
 
-struct cdb {
-    struct m_arena *arena;
-    struct sparse_index_set entities;
+struct cdb_cmp_region_info {
+    struct cdb_cmp_type_desc *cmp_types;
+    usz cmp_type_count;
 };
 
-#define CDB_QUERY_DST(dst) ((dst)(void *))
+struct cdb_cmp_region {
+    struct cdb_cmp_type_desc *descs;
+    usz count;
+};
 
-void cdb_init(struct cdb *cdb, const struct cdb_context_info info);
-void cdb_destroy(struct cdb *cdb);
-void cdb_query(struct cdb *cdb, void *dst, usz query[]);
+struct cdb_context {
+    struct m_arena *arena;
+};
+
+struct cdb_cmp_type_desc {
+    usz id;
+    void (*behaviour) (struct cdb_context *);
+    usz cmp_width;
+    usz cmp_ammount;
+};
+
+void cdb_init(struct cdb_context *cdb, const struct cdb_context_info info);
+void cdb_destroy(struct cdb_context *cdb);
+void cdb_get_cmp_desc(struct cdb_context *cdb, struct cmp_desc *dst, usz region, usz cmp_id)
+void cdb_register_cmp_region(struct cdb_context *cdb, const struct cdb_cmp_region_info info);
 
 #endif /* __CDB_H__ */

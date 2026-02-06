@@ -34,9 +34,13 @@ void app_init(struct app *app, const struct app_info info)
     init_app_memory(&memory);
 
     struct scene_context scene_context = {0};
-    struct scene_context_info scene_context_info = {0};
-    scene_context_info_init(&scene_context_info, memory);
+    struct scene_context_info scene_context_info = {
+        .transient_arena = memory.transient,
+        .permanent_arena = memory.permanent,
+    };
     scene_context_init(&scene_context, scene_context_info);
+
+
 
     app->config = config;
     app->memory = memory;
@@ -45,14 +49,14 @@ void app_init(struct app *app, const struct app_info info)
 
 void app_run(struct app *app)
 {
-    UNUSED(app);
+
 }
 
 void app_cleanup(const struct app app)
 {
-    struct scene_context scene_context = app.scene_context;
-    UNUSED(scene_context);
     INFO_LOG("cleaning up!");
+
+    wm_shutdown(&wm);
 }
 
 #define DEFAULT_WINDOW_WIDTH 1200
