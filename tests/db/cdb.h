@@ -4,16 +4,16 @@
 #include <core/types.h>
 #include <core/sparse_set.h>
 
-struct cdb_context_info {
+struct cs_context_info {
     struct m_arena *arena;
 };
 
-struct cdb_cmp_region_info {
+struct cs_cmp_region_info {
     struct cdb_cmp_type_desc *cmp_types;
     usz cmp_type_count;
 };
 
-struct cdb_cmp_region {
+struct cs_cmp_region {
     struct cdb_cmp_type_desc *descs;
     usz count;
 };
