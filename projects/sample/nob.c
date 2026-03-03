@@ -5,17 +5,12 @@
 
 #define OUT_DIR "out/"
 
-#ifdef _WIN32
-#   error "windows not supported yet!"
-#   define PLATFORM_LIBRARY_LINKS
-#else
-#   define PLATFORM_LIBRARY_LINKS "-lvulkan", "-lX11"
-#endif /* _WIN32 */
-
-#define LIBRARY_LINKS PLATFORM_LIBRARY_LINKS
+#define M4      "m4"
 
 #define CC      "gcc"
-#define CFLAGS  get_libcore_inc(), "-I../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
+#define CFLAGS  "-I../include", "-ggdb", "-Wall", "-Os", "-std=gnu11", "-Wextra", "-Werror", "-c"
+
+#define LIBNAME "sample"
 
 #define AR      "ar"
 #define ARFLAGS "rcs"
@@ -24,9 +19,7 @@
 #   define LIB_EXT ".so"
 #else
 #   define LIB_EXT ".a"
-#endif
-
-#define LIBNAME "game"
+#endif /* LIB_SHARED */
 
 /* IGNORE LIST */
 static const char *ignore_list[] = {
@@ -34,31 +27,6 @@ static const char *ignore_list[] = {
 };
 
 #define MIN_FILENAME_LEN 1
-
-const char *check_getenv(const char *key)
-{
-    const char *value = getenv(key);
-    if (!value) {
-        nob_log(NOB_ERROR, "failed to getenv: %s returned NULL", key);
-        abort();
-    }
-    return value;
-}
-
-const char *get_libcore_inc(void)
-{
-    static char inc_dir[PATH_MAX + 1] = {0};
-    bool once_flag = false;
-
-    if (once_flag == false) {
-        strncpy(inc_dir, "-I", NOB_ARRAY_LEN(inc_dir));
-        strncat(inc_dir, check_getenv("LIB_CORE_INCLUDE_DIR"), NOB_ARRAY_LEN(inc_dir)-strlen(inc_dir));
-    }
-    once_flag = true;
-
-    return inc_dir;
-}
-
 /* checks for file extensions */
 bool is_type(const char *file, const char *type)
 {
@@ -111,18 +79,7 @@ void parse_options(int argc, char **argv)
     }
 }
 
-void link_game_archive(Nob_File_Paths obj_files)
-{
-    Nob_Cmd link_cmd = {0};
-    nob_cmd_append(&link_cmd, AR, ARFLAGS);
-    nob_cmd_append(&link_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
-    for (int i = 0; i < obj_files.count; ++i) {
-        nob_cmd_append(&link_cmd, obj_files.items[i]);
-    }
-    NOB_ASSERT(nob_cmd_run_sync(link_cmd));
-}
-
-void build_game(void)
+void build_library(void)
 {
     Nob_Procs comp_threads = {0};
     Nob_Cmd comp_cmd = {0};
@@ -139,7 +96,7 @@ void build_game(void)
         if (!is_type(src.items[i], "c") || is_ignored(src.items[i]))
             continue;
         c_src = src.items[i];
-        nob_cmd_append(&comp_cmd, CC, CFLAGS);
+        nob_cmd_append(&comp_cmd, CC, CFLAGS, "-c");
         obj_file = src_path_to_obj_path(src.items[i]);
         nob_da_append(&obj_files, obj_file);
         nob_cmd_append(&comp_cmd, c_src, "-o", obj_file);
@@ -147,15 +104,27 @@ void build_game(void)
     }
     NOB_ASSERT(nob_procs_wait_and_reset(&comp_threads));
 
-    link_game_archive(obj_files);
-}
+#ifdef LIB_SHARED
+    /* finally, link object files into a shared object */
+    nob_cmd_append(&comp_cmd, LD, LDFLAGS);
+#else
+    /* finally, link object files into a static archive */
+    nob_cmd_append(&comp_cmd, AR, ARFLAGS);
+#endif
 
+    nob_cmd_append(&comp_cmd, OUT_DIR "lib" LIBNAME LIB_EXT);
+    for (int i = 0; i < obj_files.count; ++i) {
+        nob_cmd_append(&comp_cmd, obj_files.items[i]);
+    }
+
+    nob_cmd_run_sync(comp_cmd);
+}
 
 int main(int argc, char **argv)
 {
     NOB_GO_REBUILD_URSELF(argc, argv);
     parse_options(argc, argv);
-    build_game();
+    build_library();
 
     return EXIT_SUCCESS;
 }

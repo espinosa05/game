@@ -1,8 +1,0 @@
-# SYSTEM_DEFINITION
-
-module:
-  head: 'vanilla_encounters'
-  id: 0
-  dependencies: ['modular_encounters_beta']
-
-

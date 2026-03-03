@@ -8,7 +8,7 @@
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lgame", "-lyuhml", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
+#define LINKS   "-lengine", "-lyuhml", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -23,7 +23,6 @@ static const char *ignore_list[] = {
 static const char *lib_names[] = {
     "core",
     "kiek",
-    "yuhml",
 };
 
 static bool run_project_executable;
@@ -172,25 +171,9 @@ void clean_libs(void)
     }
 }
 
-void clean_game()
-{
-    Nob_Cmd clean_cmd = {0};
-    const char *base_dir = NULL;
-
-    base_dir = nob_get_current_dir_temp();
-    NOB_ASSERT(nob_set_current_dir_log(GAME_DIR));
-    nob_cmd_append(&clean_cmd, "./nob", "clean");
-    nob_cmd_run_sync_and_reset(&clean_cmd);
-
-    NOB_ASSERT(nob_set_current_dir_log(base_dir));
-
-    nob_temp_reset();
-}
-
 void clean_project(void)
 {
     clean_libs();
-    clean_game();
 }
 
 void parse_options(int argc, char **argv)
@@ -211,35 +194,6 @@ void parse_options(int argc, char **argv)
     }
 }
 
-void copy_game_archive()
-{
-    Nob_Cmd copy_cmd = {0};
-    /* copy from game out archive */
-    nob_cmd_append(&copy_cmd, "cp", GAME_DIR OUT_DIR "libgame.a");
-    /* into the project out directory */
-    nob_cmd_append(&copy_cmd, OUT_DIR);
-
-    nob_cmd_run_sync_and_reset(&copy_cmd);
-}
-
-void build_application()
-{
-    const char *base_dir = nob_get_current_dir_temp();
-    NOB_ASSERT(nob_set_current_dir(GAME_DIR));
-
-    /* build game sources */
-    {
-        Nob_Cmd game_cmp_cmd = {0};
-        nob_cmd_append(&game_cmp_cmd, "./nob");
-        nob_cmd_run_sync(game_cmp_cmd);
-    }
-
-    NOB_ASSERT(nob_set_current_dir(base_dir));
-
-    copy_game_archive();
-    nob_temp_reset();
-}
-
 void link_executable()
 {
     Nob_Cmd game_link_cmd = {0};
@@ -253,7 +207,6 @@ void build_project(void)
 {
     NOB_ASSERT(nob_mkdir_if_not_exists(OUT_DIR));
     build_libraries();
-    build_application();
     link_executable();
 }
 
