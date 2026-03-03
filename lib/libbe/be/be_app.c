@@ -1,5 +1,8 @@
-#include "be_app.h"
+#include <be/be_app.h>
 #include <core/log.h>
+
+static void load_client_settings(struct be_app_settings *client_settings);
+static void load_client_layers(struct be_app_layers *client_layers);
 
 static b32 should_close(struct be_app *be_app);
 static void tick_start(struct be_app *be_app);
@@ -17,7 +20,7 @@ void be_app_memory_init(struct be_app_memory *be_app_memory)
     static u8 transient_buff[TRANSIENT_BUFF_SIZE] = {0};
     static u8 permanent_buff[PERMANENT_BUFF_SIZE] = {0};
 
-    struct m_arena_info transient_info = {0}
+    struct m_arena_info transient_info = {0};
     transient_info.external = TRUE;
     transient_info.buffer   = transient_buff;
     transient_info.size     = ARRAY_SIZE(transient_buff);
@@ -30,6 +33,12 @@ void be_app_memory_init(struct be_app_memory *be_app_memory)
     m_arena_init(&be_app_memory->permanent, permanent_info);
 }
 
+void be_app_memory_init(struct be_app_memory *be_app_memory)
+{
+    m_arena_delete(&be_app_memory->transient);
+    m_arena_delete(&be_app_memory->permanent);
+}
+
 void be_app_init(struct be_app *be_app)
 {
     be_app->dt = 0;
@@ -38,6 +47,11 @@ void be_app_init(struct be_app *be_app)
     os_time_init(&be_app->frame_end);
 
     be_app_memory_init(&be_app->memory);
+
+    /* load data from client code */
+    struct be_app_settings client_settings = {0}
+    load_client_settings(&client_settings);
+    load_client_layers(&app->app_layers);
 
     const usz queue_length = 32;
     struct m_array_info event_arr_info = {0};
@@ -49,16 +63,13 @@ void be_app_init(struct be_app *be_app)
 
     wm_init(&be_app->wm);
     struct wm_window_info main_window_info = {0};
-    main_window_info.initial_title  = "be_app",
+    main_window_info.initial_title  = client_settings->app_window_title,
     main_window_info.force_size     = TRUE,
-    main_window_info.width          = 1200,
-    main_window_info.height         = 720,
+    main_window_info.width          = client_settings->app_window_width,
+    main_window_info.height         = client_settings->app_window_height,
     main_window_info.x_pos          = X_POS_CENTERED,
     main_window_info.y_pos          = Y_POS_CENTERED,
     wm_window_create(&be_app->wm, &be_app->main_window, main_window_info);
-
-    /* THIS FUNCTION IS WRITTEN BY THE APPLICATION PROGRAMMER!!! */
-    be_app_load_layers(&be_app);
 }
 
 void be_app_run(struct be_app *be_app)
@@ -76,6 +87,7 @@ void be_app_run(struct be_app *be_app)
 void be_app_delete(struct be_app *be_app)
 {
     wm_shutdown(&be_app->wm);
+    be_app_memory_cleanup(&be_app->memory);
 }
 
 void be_app_layers_init(struct be_app_layers *layers)
@@ -85,7 +97,6 @@ void be_app_layers_init(struct be_app_layers *layers)
 
 void be_app_layers_push(struct be_app_layers *layers, struct be_app_layer_desc layer)
 {
-
 }
 
 static b32 should_close(struct be_app *be_app)
