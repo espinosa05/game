@@ -9,38 +9,23 @@ struct be_engine_memory {
 };
 
 struct be_engine {
-    struct be_engine_memory                 memory;
-    struct be_app_layers                    app_layers;
-    struct wm                               wm;
-    struct wm_window                        main_window;
-
-    struct m_static_array(struct wm_event)  events;
-    struct os_time                          frame_start;
-    struct os_time                          frame_end;
+    struct be_engine_memory                     memory;
+    struct m_static_array(struct be_app_layer)  layers;
+    struct m_static_array(struct wm_event)      events;
+    struct wm                                   wm;
+    struct wm_window                            main_window;
+    struct os_time                              frame_start;
+    struct os_time                              frame_end;
     usz dt;
 };
 
 struct be_app_layer_desc {
-    decl_func_ptr(void, init,         struct be_engine_memory *);
-    decl_func_ptr(void, delete,       struct be_engine_memory *);
-
-    decl_func_ptr(void, on_event,     struct m_static_array(struct wm_event));
-    decl_func_ptr(void, on_update,    struct be_engine_memory *);
-
-    decl_func_ptr(void, suspend,      struct be_engine_memory *);
-    decl_func_ptr(void, transition,   struct be_engine_memory *);
-};
-
-struct be_app_layers {
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) init;
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) delete;
-
-    struct m_static_array(func_ptr_type(void, struct m_static_array(struct wm_event))) on_event;
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) on_update;
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) on_render;
-
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) suspend;
-    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) transition;
+    void (*init) (struct be_engine_memory *);
+    void (*delete) (struct be_engine_memory *);
+    void (*on_event) (struct m_static_array(struct wm_event));
+    void (*on_update) (struct be_engine_memory *);
+    void (*suspend) (struct be_engine_memory *);
+    void (*transition) (struct be_engine_memory *);
 };
 
 void be_engine_memory_init(struct be_engine_memory *be_engine_memory);

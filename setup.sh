@@ -13,8 +13,11 @@ cd lib/
             cc nob.c -o nob
         cd ../
     cd ../
+    cd libbe/
+        cd be/
+            cc nob.c -o nob
+        cd ../
+    cd ../
+
 cd ../
 
-cd game
-    cc nob.c -o nob
-cd ../

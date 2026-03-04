@@ -10,6 +10,7 @@ static void poll_events(struct be_engine *be_engine);
 static void handle_events(struct be_engine *be_engine);
 static void update(struct be_engine *be_engine);
 static void render(struct be_engine *be_engine);
+static void transition_layers(struct be_engine *be_engine);
 static void tick_end(struct be_engine *be_engine);
 
 #define TRANSIENT_BUFF_SIZE (32*MB_SIZE)
@@ -76,9 +77,12 @@ void be_engine_run(struct be_engine *be_engine)
         poll_events(be_engine);
         handle_events(be_engine);
 
-        update_layers(be_engine);
-        render_layers(be_engine);
+        update(be_engine);
+        render(be_engine);
+
         present_image(be_engine);
+
+        transition_layers(&be_engine);
         tick_end(be_engine);
     }
 }
@@ -88,7 +92,6 @@ void be_engine_delete(struct be_engine *be_engine)
     wm_shutdown(&be_engine->wm);
     be_engine_memory_cleanup(&be_engine->memory);
 }
-
 
 static b32 should_close(struct be_engine *be_engine)
 {
@@ -121,31 +124,50 @@ static void poll_events(struct be_engine *be_engine)
 
 static void handle_events(struct be_engine *be_engine)
 {
-    decl_func_ptr(void, on_event, struct be_engine_memory *) = NULL;
+    struct m_static_array(void (*) (struct be_engine_memory *, struct m_static_array(struct wm_event))) on_event_callbacks= be_engine->app_layers.on_event;
+    void (*on_event) (struct be_engine_memory *, struct m_static_array(struct wm_event)) = NULL;
 
-    for (usz i = 0; i < be_engine->app_layers.count; ++i) {
-        on_event = be_engine->app_layers.on_event.data[i];
+    for (usz i = 0; i < on_event_callbacks.count; ++i) {
+        on_event = on_event_callbacks.data[i];
         on_event(&be_engine->memory, &be_engine->events);
     }
 }
 
 static void update(struct be_engine *be_engine)
 {
-    decl_func_ptr(void, on_update, struct be_engine_memory *);
+    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) on_update_callbacks = be_engine->app_layers.on_update;
+    void (*on_update) (struct be_engine_memory *) = NULL;
 
-    for (usz i = 0; i < be_engine->app_layers.count; ++i) {
-        on_update = be_engine->app_layers.on_update[i];
+    for (usz i = 0; i < on_update_callbacks.count; ++i) {
+        on_update = on_update_callbacks.data[i];
         on_update(&be_engine->memory);
     }
+
 }
 
 static void render(struct be_engine *be_engine)
 {
-    decl_func_ptr(void, on_render, struct be_engine_memory *);
+    struct m_static_array(func_ptr_type(void, struct be_engine_memory *)) on_render_callbacks = be_engine->app_layers.on_render;
+    void (*on_render)(struct be_engine_memory *) = NULL;
 
-    for (usz i = 0; i < be_engine->app_layers.count; ++i) {
-        on_render = be_engine->app_layers.on_render[i];
+    for (usz i = 0; i < on_render_callbacks.count; ++i) {
+        on_render = on_render_callbacks.data[i];
         on_render(&be_engine->memory);
+    }
+}
+
+static void transition_layers(struct be_engine *be_engine)
+{
+    struct m_queue(struct be_layer_transition) *transitions = &be_engine->app_layer_transition_queue;
+    struct be_layer_transition *transition = NULL;
+
+    usz count = transitions->length;
+    for (usz i = 0; i < count; ++i) {
+        m_queue_dequeue(transitions, &transition);
+        ASSERT_RT(transition.layer_index < be_engine->app_layers.count, "layer selector out of bounds");
+
+        be_engine->app_layers.init.data[i] = 
+
     }
 }
 

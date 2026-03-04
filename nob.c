@@ -4,11 +4,12 @@
 #define IS_ARG(a, v) (0 == strcmp((a), (v)))
 
 
+#define PROJ_DIR "projects/"
 #define OUT_DIR "out/"
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lengine", "-lyuhml", "-lkiek", "-lcore", "-lxcb", "-lvulkan"
+#define LINKS   "-lengine", "-lyuhml", "-lkiek", get_project_link(), "-lcore", "-lxcb", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -23,14 +24,31 @@ static const char *ignore_list[] = {
 static const char *lib_names[] = {
     "core",
     "kiek",
+    "be",
 };
 
+static char *g_lib = NULL;
 static bool run_project_executable;
 
 bool nob_set_current_dir_log(const char *path)
 {
     nob_log(NOB_INFO, "setting CWD to -> %s", path);
     return nob_set_current_dir(path);
+}
+
+const char *get_project_link(void)
+{
+    static char *link = NULL;
+
+    assert(g_lib && "project link not set up");
+    Nob_String_Builder sb = {0};
+
+    nob_sb_appendf(&sb, "-l%s", g_lib);
+    nob_sb_append_null(&sb);
+
+    link = sb.items;
+
+    return link;
 }
 
 #define MIN_FILENAME_LEN 1
@@ -189,8 +207,7 @@ void parse_options(int argc, char **argv)
     } else if (IS_ARG("run", *argv)) {
         run_project_executable = true;
     }  else {
-        nob_log(NOB_ERROR, "%s: no such target", *argv);
-        exit(EXIT_FAILURE);
+        g_lib = *argv;
     }
 }
 
