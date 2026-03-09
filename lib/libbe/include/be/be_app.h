@@ -14,15 +14,14 @@ struct be_app_layer {
     void (*on_event) (struct be_app_layer_stack *);
     void (*on_update) (struct be_engine_memory *);
     void (*suspend) (struct be_engine_memory *);
-    void (*transition) (struct be_engine_memory *);
 };
 
 struct be_app_layer_stack {
-    MM_STACK_MEMBERS(struct be_app_layer);
+    MM_ARRAY_MEMBERS(struct be_app_layer *);
 };
 
 struct be_app_layer_transition {
-    struct be_app_layer layer;
+    struct be_app_layer *layer;
     usz layer_index;
 };
 

@@ -165,9 +165,8 @@ static void transition_layers(struct be_engine *be_engine)
 
     usz count = transition_queue->length;
     for (usz i = 0; i < count; ++i) {
-        transition = mm_queue_dequeue(transition_queue);
-        layer = mm_array_get(layers, transition->layer_index);
-        m_move(, layers);
+        mm_queue_dequeue(transition_queue, &transition);
+        layers->data[transition.layer_index] = transition.layer;
     }
 }
 
