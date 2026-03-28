@@ -3,25 +3,30 @@
 
 #include <core/types.h>
 #include <core/memory_arena.h>
+#include <core/wm.h>
 
 struct be_engine_memory {
     struct m_arena permanent;
     struct m_arena transient;
 };
 
-struct be_app_window_specs {
-    usz width;
-    usz height;
-    const char *title;
+struct be_app_layer {
+    void *context;
+    void (*delete) (void *, struct be_engine_memory *);
+    void (*on_render) (void *, struct be_engine_memory *);
+    void (*on_update) (void *, struct be_engine_memory *);
+    void (*on_event) (void *, struct be_engine_memory *, struct wm_event);
+    void (*suspend) (void *);
 };
 
 struct be_app_settings {
-    const char *app_name;
-    struct be_app_window_specs window_specs;
+    const char  *app_window_title;
+    usz         app_window_width;
+    usz         app_window_height;
 };
 
+struct be_engine;
 /* to be implemented by the user */
-void be_app_settings_load_data(struct be_app_settings *settings);
-void be_app_load_layers(struct be_engine *engine);
+extern void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings);
 
 #endif /* __BE_BE_APP_ENTRY_H__ */

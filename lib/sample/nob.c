@@ -8,7 +8,7 @@
 #define M4      "m4"
 
 #define CC      "gcc"
-#define CFLAGS  "-I../include", "-ggdb", "-Wall", "-Os", "-std=gnu11", "-Wextra", "-Werror", "-c"
+#define CFLAGS  "-I../../lib/libcore/include", "-I../../lib/libbe/include", "-ggdb", "-Wall", "-Os", "-std=gnu11", "-Wextra", "-Werror", "-c"
 
 #define LIBNAME "sample"
 

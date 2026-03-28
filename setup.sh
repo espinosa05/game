@@ -2,6 +2,7 @@
 set -x
 
 cc nob.c -o nob
+
 cd lib/
     cd libcore/
         cd core/
@@ -18,6 +19,10 @@ cd lib/
             cc nob.c -o nob
         cd ../
     cd ../
-
 cd ../
 
+cd projects/
+    cd $1/
+        cc nob.c -o nob
+    cd ../
+cd ../

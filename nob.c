@@ -9,7 +9,7 @@
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lengine", "-lyuhml", "-lkiek", get_project_link(), "-lcore", "-lxcb", "-lvulkan"
+#define LINKS   "-lbe", "-lyuhml", "-lkiek", get_project_link(), "-lcore", "-lxcb-icccm", "-lxcb", "-lxcb-keysyms", "-lvulkan"
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -109,6 +109,22 @@ void copy_libraries(void)
 
 }
 
+void copy_project(void)
+{
+    Nob_Cmd copy_cmd = {0};
+    Nob_String_Builder src_path = {0};
+
+    nob_sb_appendf(&src_path, "%s%s/out/lib%s.a",
+                        PROJ_DIR, g_lib, g_lib);
+    nob_sb_append_null(&src_path);
+
+    nob_cmd_append(&copy_cmd, "cp", src_path.items, OUT_DIR);
+    nob_cmd_run_sync(copy_cmd);
+
+    nob_sb_free(src_path);
+    nob_cmd_free(copy_cmd);
+}
+
 bool is_required_dependency(char *libname)
 {
     for (int i = 0; i < NOB_ARRAY_LEN(lib_names); ++i) {
@@ -157,9 +173,9 @@ void build_libraries(void)
     NOB_ASSERT(nob_procs_wait_and_reset(&build_threads));
     NOB_ASSERT(nob_set_current_dir_log(base_dir));
     nob_temp_reset();
-
-    copy_libraries();
 }
+
+
 
 void clean_libs(void)
 {
@@ -222,9 +238,20 @@ void link_executable()
 
 void build_project(void)
 {
-    NOB_ASSERT(nob_mkdir_if_not_exists(OUT_DIR));
-    build_libraries();
-    link_executable();
+    Nob_Cmd build_cmd = {0};
+    Nob_String_Builder proj_dir_path = {0};
+    char *base_dir = nob_get_current_dir_temp();
+    {
+        nob_sb_appendf(&proj_dir_path, "%s%s", PROJ_DIR, g_lib);
+        nob_sb_append_null(&proj_dir_path);
+
+        /* change path */
+        NOB_ASSERT(nob_set_current_dir_log(proj_dir_path.items));
+        nob_cmd_append(&build_cmd, "./nob");
+        nob_cmd_run_sync_and_reset(&build_cmd);
+    }
+    NOB_ASSERT(nob_set_current_dir_log(base_dir));
+
 }
 
 void run_project(void)
@@ -241,7 +268,16 @@ int main(int argc, char **argv)
 
     run_project_executable = false;
     parse_options(argc, argv);
+
+    NOB_ASSERT(nob_mkdir_if_not_exists(OUT_DIR));
+    build_libraries();
+    copy_libraries();
+
     build_project();
+    copy_project();
+
+    link_executable();
+
 
     if (run_project_executable) {
         run_project();
