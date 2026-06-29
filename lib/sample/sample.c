@@ -1,77 +1,54 @@
 #include <be/be_app_entry.h>
-
 #include <be/be_engine.h>
+
 #include <core/utils.h>
 #include <core/wm.h>
+#include <core/wm_utils.h>
+#include <core/log.h>
 
 struct game_context {
-
+    struct be_engine *engine;
 };
 
-static void handle_window_event(struct game_context *game_context, struct wm_window_event event);
-static void handle_keyboard_event(struct game_context *game_context, struct wm_keyboard_event event);
-static void handle_mouse_event(struct game_context *game_context, struct wm_mouse_event event);
+/* static function declaration start */
+static void delete(struct be_engine *engine);
+static void on_render(struct be_engine *engine);
+static void on_update(struct be_engine *engine);
+static void on_event(struct be_engine *engine, struct wm_event event);
+static void suspend(struct be_engine *engine);
+/* static function declaration end */
 
-static void delete(void *context, struct be_engine_memory *memory)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+static void delete(struct be_engine *engine)
 {
-    UNUSED(context);
-    UNUSED(memory);
     return;
 }
 
-static void on_render(void *context, struct be_engine_memory *memory)
+static void on_render(struct be_engine *engine)
 {
-    UNUSED(context);
-    UNUSED(memory);
     return;
 }
 
-static void on_update(void *context, struct be_engine_memory *memory)
+static void on_update(struct be_engine *engine)
 {
-    UNUSED(context);
-    UNUSED(memory);
     return;
 }
 
-static void on_event(void *context, struct be_engine_memory *memory, struct wm_event *event)
+static void on_event(struct be_engine *engine, struct wm_event event)
 {
-    UNUSED(memory);
-    struct game_context *game_context = context;
-
-    switch (event->event_type) {
-    case WM_EVENT_TYPE_WINDOW:
-        handle_window_event(game_context, event->window_event);
-        break;
-    case WM_EVENT_TYPE_KEYBOARD:
-        handle_keyboard_event(game_context, event->key_event);
-        break;
-    case WM_EVENT_TYPE_MOUSE:
-        handle_mouse_event(game_context, event->mouse_event);
-        break;
+    if (event.event_type == WM_EVENT_TYPE_KEYBOARD
+            && event.key_event.type == WM_KEYBOARD_EVENT_TYPE_KEY_PRESS
+            && (event.key_event.value == WM_KEYSYM_Q
+                || event.key_event.value == WM_KEYSYM_ESC)) {
+        INFO_LOG("closing...");
+        engine->close = TRUE;
     }
+    return;
 }
 
-static void suspend(void *context)
+static void suspend(struct be_engine *engine)
 {
-    UNUSED(context);
-}
-
-static void handle_window_event(struct game_context *game_context, struct wm_window_event event)
-{
-    UNUSED(game_context);
-    UNUSED(event);
-}
-
-static void handle_keyboard_event(struct game_context *game_context, struct wm_keyboard_event event)
-{
-    UNUSED(game_context);
-    UNUSED(event);
-}
-
-static void handle_mouse_event(struct game_context *game_context, struct wm_mouse_event event)
-{
-    UNUSED(game_context);
-    UNUSED(event);
 }
 
 static struct be_app_layer get_game_layer(void)
@@ -85,13 +62,28 @@ static struct be_app_layer get_game_layer(void)
     };
 }
 
-#define MAX_LAYERS 4
+#pragma GCC diagnostic pop
+
+enum layers {
+    SAMPLE_TEST_LAYER_MENU = 0,
+    SAMPLE_TEST_LAYER_OVERLAY,
+    SAMPLE_TEST_LAYER_3D_RENDERER,
+
+    SAMPLE_TEST_LAYER_COUNT,
+};
+
+#define SAMPLE_APP_RESOURCE_PATH "resources/"
+#define SAMPLE_APP_SHADER_PATH SAMPLE_APP_RESOURCE_PATH "shaders/"
+#define SAMPLE_APP_SIMULATION_THREAD_COUNT 4
 void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings)
 {
-    be_app_settings->app_window_title   = "test app";
-    be_app_settings->app_window_width   = 1200;
-    be_app_settings->app_window_height  = 720;
+    be_app_settings->app_name                   = "test_app";
+    be_app_settings->app_window_title           = "test app";
+    be_app_settings->app_window_width           = 1200;
+    be_app_settings->app_window_height          = 720;
+    be_app_settings->app_sim_thread_count       = SAMPLE_APP_SIMULATION_THREAD_COUNT;
 
-    be_init_layers(be_engine, MAX_LAYERS);
+    be_init_layers(be_engine, SAMPLE_TEST_LAYER_COUNT);
     be_push_layer(be_engine, get_game_layer());
 }
+

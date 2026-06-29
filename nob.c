@@ -9,7 +9,7 @@
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lbe", "-lyuhml", "-lkiek", get_project_link(), "-lcore", "-lxcb-icccm", "-lxcb", "-lxcb-keysyms", "-lvulkan"
+#define LINKS   "-lbe", "-lkiek", get_project_link(), "-lcore", "-lxcb-icccm", "-lxcb", "-lxcb-keysyms", "-lvulkan", "-lpipewire-0.3", "-lm" 
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -216,21 +216,23 @@ void parse_options(int argc, char **argv)
         return;
 
     Nob_Cmd cmd = {0};
-    nob_shift(argv, argc);
-    if (IS_ARG("clean", *argv)) {
-        clean_project();
-        exit(EXIT_SUCCESS);
-    } else if (IS_ARG("run", *argv)) {
-        run_project_executable = true;
-    }  else {
-        g_lib = *argv;
+    for (int i = 0; i < argc; ++i) {
+        nob_shift(argv, argc);
+        if (IS_ARG("clean", *argv)) {
+            clean_project();
+            exit(EXIT_SUCCESS);
+        } else if (IS_ARG("run", *argv)) {
+            run_project_executable = true;
+        }  else {
+            g_lib = *argv;
+        }
     }
 }
 
 void link_executable()
 {
     Nob_Cmd game_link_cmd = {0};
-    nob_cmd_append(&game_link_cmd, CC);
+    nob_cmd_append(&game_link_cmd, CC, "-g");
     nob_cmd_append(&game_link_cmd, "-L./" OUT_DIR, LINKS);
     nob_cmd_append(&game_link_cmd, "-o", OUT_DIR PROGNAME ".elf");
     nob_cmd_run_sync(game_link_cmd);

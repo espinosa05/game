@@ -3,6 +3,7 @@
 
 #include <core/wm.h>
 #include <core/os.h>
+#include <core/memory_arena.h>
 #include <core/memory_macros.h>
 #include <be/be_app_entry.h>
 
@@ -23,7 +24,7 @@ struct be_app_layer_transition_queue {
 
 struct be_engine {
     /* shared engine and application memory */
-    struct be_engine_memory memory;
+    struct m_arena permanent_memory;
 
     /* windowing and inputs */
     struct wm           wm;
@@ -38,14 +39,17 @@ struct be_engine {
     struct os_time  frame_start;
     struct os_time  frame_end;
     usz             dt;
+
+    /* close event happened */
+    b32 close;
 };
 
 void be_init_layers(struct be_engine *be_engine, usz layer_count);
 void be_push_layer(struct be_engine *be_engine, struct be_app_layer layer);
-void be_engine_memory_init(struct be_engine_memory *be_engine_memory);
 void be_engine_init(struct be_engine *be_engine);
 void be_engine_add_layer(struct be_engine *be_engine, struct be_app_layer *layer);
 void be_engine_run(struct be_engine *be_engine);
 void be_engine_delete(struct be_engine *be_engine);
+void be_engine_set_close(volatile struct be_engine *be_engine);
 
 #endif /* __BE_BE_ENGINE_H__ */

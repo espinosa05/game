@@ -6,7 +6,7 @@
 #define OUT_DIR "out/"
 
 #define CC      "gcc"
-#define CFLAGS  get_libcore_inc(), "-I../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
+#define CFLAGS  get_libcore_inc(), "-I../include", "-g", "-Wall", "-Wextra", "-Werror", "-c"
 #define LIBNAME "be"
 
 #define AR      "ar"

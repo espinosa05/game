@@ -8,12 +8,12 @@ $ ./setup.sh
 # BUILDING THE PROJECT
 To build the project, execute the following command inside the project root
 ```bash
-$ ./nob
+$ ./runs.sh
 ```
 # RUNNING THE PROJECT
 To run the project, execute the following command inside the project root
 ```bash
-$ ./nob run
+$ ./run.sh [PROJECT_NAME]
 ```
 # CLEANING
 To clean the project, execute the following command inside the project root
