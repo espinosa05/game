@@ -7,8 +7,16 @@
 
 struct be_engine;
 
+struct be_app_layer_spec {
+    void (*init) (struct be_engine *);
+    void (*delete) (struct be_engine *);
+    void (*on_render) (struct be_engine *);
+    void (*on_update) (struct be_engine *);
+    void (*on_event) (struct be_engine *, struct wm_event);
+    void (*suspend) (struct be_engine *);
+};
+
 struct be_app_layer {
-    void *context;
     void (*delete) (struct be_engine *);
     void (*on_render) (struct be_engine *);
     void (*on_update) (struct be_engine *);
