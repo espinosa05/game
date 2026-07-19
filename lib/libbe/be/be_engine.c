@@ -1,6 +1,8 @@
 #include <be/be_engine.h>
 #include <be/be_app_entry.h>
 #include <core/log.h>
+#include <core/cstr.h>
+#include <core/str_builder.h>
 #include <core/memory_macros.h>
 #include <core/os_util.h>
 #include <core/os_thread.h>
@@ -10,14 +12,14 @@
 #include <core/shader_compiler.h>
 
 struct be_environment {
-    const char *config_root;
-    const char *state_root;
-    const char *storage_root;
-    const char *cache_root;
+    char *config_root;
+    char *state_root;
+    char *storage_root;
+    char *cache_root;
 };
 
 /* static function declaration start */
-static void compile_shaders(const struct be_app_settings settings, struct m_arena *arena);
+static void compile_shaders(struct be_environment env, struct m_arena *arena);
 static usz shader_type_from_string(const char *str);
 static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena);
 static b32 should_close(struct be_engine *be_engine);
@@ -30,6 +32,7 @@ static void render(struct be_engine *be_engine);
 static void present_image(struct be_engine *be_engine);
 static void transition_layers(struct be_engine *be_engine);
 static void load_environment(struct be_environment *env);
+static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena);
 /* static function declaration end */
 
 #undef UNUSED
@@ -63,7 +66,7 @@ void be_push_layer(struct be_engine *be_engine, struct be_app_layer_spec spec)
     layer.suspend = spec.suspend;
     mm_array_append(&be_engine->layers, layer);
 
-    spec.init(engine);
+    spec.init(be_engine);
 }
 
 #define BLEEDING_EDGE_EVENT_QUEUE_LENGTH USZ(128)
@@ -94,7 +97,7 @@ void be_engine_init(struct be_engine *be_engine)
     struct m_arena init_arena = {0};
     struct m_arena_info init_arena_info = {0};
     init_arena_info.buffer      = U8_ARR(BLEEDING_EDGE_INIT_ARENA_SIZE, 0);
-    init_arena_info.mem_size    = SETUP_ARENA_SIZE;
+    init_arena_info.mem_size    = BLEEDING_EDGE_INIT_ARENA_SIZE;
     init_arena_info.external    = TRUE;
     m_arena_init(&init_arena, init_arena_info);
 
@@ -109,19 +112,19 @@ void be_engine_init(struct be_engine *be_engine)
     /* initialize layers */
     mm_array_init_ar(&be_engine->layers, BLEEDING_EDGE_MAX_LAYERS, &be_engine->permanent_memory);
 
+    struct be_environment env = {0};
+    load_environment(&env);
+
     /* load data from the client application code */
     struct be_app_settings app_settings = BLEEDING_EDGE_DEFAULT_APP_SETTINGS;
     be_app_entry(be_engine, &app_settings);
 
+    if (!shader_cache_exists(env, &init_arena)) {
+        INFO_LOG("shader cache doesn't exist!");
+        compile_shaders(env, &init_arena);
+    }
+
     mm_array_init_ar(&be_engine->events, BLEEDING_EDGE_EVENT_QUEUE_LENGTH, &be_engine->permanent_memory);
-
-
-    struct be_environment env = {0};
-    load_environment(&env);
-
-    if (shader_cache_exists(env))
-        compile_shaders(app_settings, &init_arena);
-
     wm_init(&be_engine->wm);
     struct wm_window_info main_window_info = {0};
     main_window_info.initial_title  = app_settings.app_window_title;
@@ -168,43 +171,29 @@ void be_engine_set_close(volatile struct be_engine *be_engine)
 /* almost all resource directory paths are made up of the "root" and one sub directory */
 #define RSRC_PATH_PART_COUNT 2
 
-static void compile_shaders(const struct be_app_settings settings, struct m_arena *arena)
+static void compile_shaders(struct be_environment env, struct m_arena *arena)
 {
-    ASSERT(settings.app_name, "Provide application name!");
-
     /* build shader cache path */
     struct str_builder app_shader_cache_path = {0};
     str_builder_init_ar(&app_shader_cache_path, RSRC_PATH_PART_COUNT, arena);
-    SB_CALL(str_builder_append(&app_shader_cache_path, settings.app_root_path));
+    SB_CALL(str_builder_append(&app_shader_cache_path, env.cache_root));
     SB_CALL(str_builder_append(&app_shader_cache_path, SHADER_CACHE_SUB_DIR));
 
     char *shader_cache_dir_name = NULL;
     str_builder_to_cstr_ar(&app_shader_cache_path, &shader_cache_dir_name, arena);
-    INFO_LOG(STR_SYM_MSG(shader_cache_dir_name));
-
-    /* open shader cache path */
-    struct os_dir shader_cache_dir = {0};
-    struct os_dir_info shader_cache_dir_info = {0};
-    shader_cache_dir_info.path = shader_cache_dir_name;
-    shader_cache_dir_info.perm = DPERM_READ;
-
-    if (os_path_exists(shader_cache_dir_name)) {
-        os_dir_open(&shader_cache_dir, shader_cache_dir_info);
-    } else {
-        os_dir_create(&shader_cache_dir, shader_cache_dir_info);
-    }
+    os_dir_create(shader_cache_dir_name);
 
     /* builder shader source path */
     struct str_builder app_shader_source_dir_path = {0};
-    str_builder_init_ar(&app_shader_source_dir_path, RSRC_PATH_PARTS, arena);
-    SB_CALL(str_builder_append(&app_shader_source_dir_path, settings.app_root_path));
+    str_builder_init_ar(&app_shader_source_dir_path, RSRC_PATH_PART_COUNT, arena);
+    SB_CALL(str_builder_append(&app_shader_source_dir_path, env.storage_root));
     SB_CALL(str_builder_append(&app_shader_source_dir_path, SHADER_SRC_SUB_DIR));
 
     char *shader_source_dir_name = NULL;
     str_builder_to_cstr_ar(&app_shader_source_dir_path, &shader_source_dir_name, arena);
     INFO_LOG(STR_SYM_MSG(shader_source_dir_name));
 
-    ASSERT_RT(os_path_exists(shader_source_dir_name), "Corrupted Asset data. Shader directory "STR_QUOT(STR_FMT)" not found."
+    ASSERT_RT(os_path_exists(shader_source_dir_name), "Corrupted Asset data. Shader directory "STR_QUOT(STR_FMT)" not found. "
                                                       "Fix installation before continuing!",
                                                       shader_source_dir_name);
 
@@ -213,7 +202,6 @@ static void compile_shaders(const struct be_app_settings settings, struct m_aren
     struct os_dir_info shader_source_dir_info = {0};
     shader_source_dir_info.path = shader_source_dir_name;
     shader_source_dir_info.perm = DPERM_READ;
-
     os_dir_open(&shader_source_dir, shader_source_dir_info);
 
     /* open shader source files */
@@ -225,25 +213,7 @@ static void compile_shaders(const struct be_app_settings settings, struct m_aren
         compile_shader_file(shader_source_file_paths.data[i], shader_cache_dir_name, arena);
     }
 
-    os_dir_close(&shader_cache_dir);
     os_dir_close(&shader_source_dir);
-}
-
-static usz shader_type_from_string(const char *str)
-{
-    usz type = 0;
-
-    if (cstr_compare(str, SHADER_EXT_FRAGMENT_STR)) {
-        type = SHADER_TYPE_FRAGMENT;
-    } else if (cstr_compare(str, SHADER_EXT_VERTEX_STR)) {
-        type = SHADER_TYPE_VERTEX;
-    } else if (cstr_compare(str, SHADER_EXT_COMPUTE_STR)) {
-        type = SHADER_TYPE_COMPUTE;
-    } else {
-        type = SHADER_TYPE_NULL;
-    }
-
-    return type;
 }
 
 #define SHADER_EXT_VERTEX_STR                   "vert"
@@ -253,12 +223,38 @@ static usz shader_type_from_string(const char *str)
 #define SHADER_EXT_FRAGMENT_STR                 "frag"
 #define SHADER_EXT_COMPUTE_STR                  "comp"
 
+static usz shader_type_from_string(const char *str)
+{
+    usz type = 0;
+
+    if (cstr_compare(str, SHADER_EXT_VERTEX_STR)) {
+        type = SHADER_TYPE_VERTEX;
+    } else if (cstr_compare(str, SHADER_EXT_TESSELATION_CONTROL_STR)) {
+        type = SHADER_TYPE_TESSELATION_CONTROL;
+    } else if (cstr_compare(str, SHADER_EXT_TESSELATION_EVALUATION_STR)) {
+        type = SHADER_TYPE_TESSELATION_EVALUATION;
+    } else if (cstr_compare(str, SHADER_EXT_GEOMETRY_STR)) {
+        type = SHADER_TYPE_GEOMETRY;
+    } else if (cstr_compare(str, SHADER_EXT_FRAGMENT_STR)) {
+        type = SHADER_TYPE_FRAGMENT;
+    } else if (cstr_compare(str, SHADER_EXT_COMPUTE_STR)) {
+        type = SHADER_TYPE_COMPUTE;
+    } else {
+        type = SHADER_TYPE_NULL;
+    }
+
+    return type;
+}
+
+#define ASSET_PATH_PART_COUNT 2
+#define FILE_EXTENSION_PART 1
 static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena)
 {
+    INFO_LOG("compiling "STR_QUOT(STR_FMT)"...", file);
     struct shader_compiler compiler = {0};
     SC_CALL(sc_init(&compiler));
 
-    const char *ext = NULL;
+    char *ext = NULL;
     os_util_get_file_extension_ar(file, &ext, arena);
 
     usz shader_type = shader_type_from_string(ext);
@@ -269,17 +265,36 @@ static void compile_shader_file(const char *file, const char *cache_path, struct
                                                STR_QUOT(SHADER_EXT_TESSELATION_EVALUATION_STR)", "
                                                STR_QUOT(SHADER_EXT_GEOMETRY_STR)", "
                                                STR_QUOT(SHADER_EXT_FRAGMENT_STR)" or "
-                                               STR_QOUT(SHADER_EXT_COMPUTE_STR),
+                                               STR_QUOT(SHADER_EXT_COMPUTE_STR),
                                                file);
 
     struct string shader_source = {0};
-    os_read_file_ar(file, &shader_source, arena);
+    os_util_read_file_ar(file, &shader_source, arena);
 
+    struct m_buffer binary = {0};
     struct shader_source_info shader_info = {0};
     shader_info.type    = shader_type;
     shader_info.source  = shader_source;
-    SC_CALL(sc_compile_source_ar(&compiler, shader_source, arena));
+    SC_CALL(sc_compile_source(&compiler, shader_info, &binary, arena));
     SC_CALL(sc_shutdown(&compiler));
+
+    char *binary_file_path = NULL;
+    struct str_builder binary_file_path_builder = {0};
+    str_builder_init_ar(&binary_file_path_builder, ASSET_PATH_PART_COUNT + FILE_EXTENSION_PART, arena);
+    str_builder_append(&binary_file_path_builder, cache_path);
+    str_builder_append(&binary_file_path_builder, file);
+    str_builder_append(&binary_file_path_builder, SHADER_BINARY_EXT_STR);
+    str_builder_to_cstr_ar(&binary_file_path_builder, &binary_file_path, arena);
+
+    INFO_LOG(STR_SYM_MSG(binary_file_path));
+    struct os_file binary_file = {0};
+    struct os_file_info binary_file_info = {0};
+    binary_file_info.path = binary_file_path;
+    binary_file_info.perm = FPERM_READ_AND_WRITE;
+    OS_FILE_CALL(os_file_create(&binary_file, binary_file_info));
+    OS_FILE_CALL(os_file_write_buff(&binary_file, binary.size, &binary));
+
+    os_file_close(&binary_file);
 }
 
 static b32 should_close(struct be_engine *be_engine)
@@ -370,35 +385,46 @@ static void transition_layers(struct be_engine *be_engine)
 #define APP_CACHE_PATH_KEY  "XDG_CACHE_HOME"
 
 /* these are all relative to the execution path */
-#define APP_CONFIG_ROOT_FALLBACK    "./config"
-#define APP_STATE_ROOT_FALLBACK     "./state"
+#define APP_CONFIG_ROOT_FALLBACK    "./config/"
+#define APP_STATE_ROOT_FALLBACK     "./state/"
 #define APP_STORAGE_ROOT_FALLBACK   "./"
-#define APP_CACHE_ROOT_FALLBACK     "./cache"
+#define APP_CACHE_ROOT_FALLBACK     "./cache/"
 
 static void load_environment(struct be_environment *env)
 {
     os_get_env(&env->config_root, APP_STATE_PATH_KEY);
     if (!env->config_root) {
-        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_FMT" (relative to executable)", APP_STATE_PATH_KEY, APP_CONFIG_ROOT_FALLBACK);
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_STATE_PATH_KEY, APP_CONFIG_ROOT_FALLBACK);
         env->config_root = APP_CONFIG_ROOT_FALLBACK;
     }
 
     os_get_env(&env->state_root, APP_STATE_PATH_KEY);
     if (!env->state_root) {
-        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_FMT" (relative to executable)", APP_SAVE_PATH_KEY, APP_STATE_ROOT_FALLBACK);
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_SAVE_PATH_KEY, APP_STATE_ROOT_FALLBACK);
         env->state_root = APP_STATE_ROOT_FALLBACK;
     }
 
     os_get_env(&env->storage_root, APP_SAVE_PATH_KEY);
     if (!env->storage_root) {
-        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_FMT" (relative to executable)", APP_SAVE_PATH_KEY, APP_STORAGE_ROOT_FALLBACK);
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_SAVE_PATH_KEY, APP_STORAGE_ROOT_FALLBACK);
         env->storage_root = APP_STORAGE_ROOT_FALLBACK;
     }
 
     os_get_env(&env->cache_root, APP_CACHE_PATH_KEY);
     if (!env->cache_root) {
-        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_FMT" (relative to executable)", APP_CACHE_PATH_KEY, APP_CACHE_ROOT_FALLBACK);
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_CACHE_PATH_KEY, APP_CACHE_ROOT_FALLBACK);
         env->cache_root = APP_CACHE_ROOT_FALLBACK;
     }
 }
 
+static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena)
+{
+    struct str_builder sb = {0};
+    str_builder_init_ar(&sb, 2, arena);
+    str_builder_append(&sb, env.cache_root);
+    str_builder_append(&sb, SHADER_CACHE_SUB_DIR);
+
+    char *cache_path = NULL;
+    str_builder_to_cstr_ar(&sb, &cache_path, arena);
+    return os_path_exists(cache_path);
+}

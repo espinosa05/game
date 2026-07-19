@@ -20,6 +20,12 @@ static void suspend(struct be_engine *engine);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
+static void init(struct be_engine *engine)
+{
+    return;
+}
+
 static void delete(struct be_engine *engine)
 {
     return;
@@ -51,9 +57,10 @@ static void suspend(struct be_engine *engine)
 {
 }
 
-static struct be_app_layer get_game_layer(void)
+static struct be_app_layer_spec get_game_layer(void)
 {
-    return (struct be_app_layer) {
+    return (struct be_app_layer_spec) {
+        .init       = init,
         .delete     = delete,
         .on_render  = on_render,
         .on_update  = on_update,

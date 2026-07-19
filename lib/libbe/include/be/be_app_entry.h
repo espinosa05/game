@@ -9,6 +9,7 @@ struct be_engine;
 
 struct be_app_layer_spec {
     void (*init) (struct be_engine *);
+
     void (*delete) (struct be_engine *);
     void (*on_render) (struct be_engine *);
     void (*on_update) (struct be_engine *);
@@ -16,6 +17,7 @@ struct be_app_layer_spec {
     void (*suspend) (struct be_engine *);
 };
 
+/* the init function is omitted here */
 struct be_app_layer {
     void (*delete) (struct be_engine *);
     void (*on_render) (struct be_engine *);
