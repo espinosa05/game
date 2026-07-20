@@ -13,4 +13,5 @@ else
 fi
 
 cp -r projects/$project lib/
+
 LIB_CORE_INCLUDE_DIR=$(pwd)/lib/libcore/include LIB_BE_INCLUDE_DIR=$(pwd)/lib/libbe/include ./nob $project run

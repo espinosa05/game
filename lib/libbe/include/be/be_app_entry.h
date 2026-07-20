@@ -3,6 +3,7 @@
 
 #include <core/types.h>
 #include <core/memory_arena.h>
+#include <core/cli.h>
 #include <core/wm.h>
 
 struct be_engine;
@@ -40,6 +41,6 @@ struct be_app_settings {
 
 struct be_engine;
 /* to be implemented by the user */
-extern void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings);
+extern void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings, struct cli_args args);
 
 #endif /* __BE_BE_APP_ENTRY_H__ */

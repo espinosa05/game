@@ -9,7 +9,7 @@
 #define LIB_DIR "lib/"
 #define GAME_DIR "game/"
 
-#define LINKS   "-lbe", "-lkiek", get_project_link(), "-lcore", "-lxcb-icccm", "-lxcb", "-lxcb-keysyms", "-lvulkan", "-lpipewire-0.3", "-lm" 
+#define LINKS   "-lbe", get_project_link(), "-lcore", "-lxcb-icccm", "-lxcb", "-lxcb-keysyms", "-lvulkan", "-lpipewire-0.3", "-lm" 
 
 #define CC      "gcc"
 #define PROGNAME "game"
@@ -23,7 +23,6 @@ static const char *ignore_list[] = {
 /* base names for the required libraries */
 static const char *lib_names[] = {
     "core",
-    "kiek",
     "be",
 };
 

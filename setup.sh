@@ -9,11 +9,6 @@ cd lib/
             cc nob.c -o nob
         cd ../
     cd ../
-    cd libkiek/
-        cd kiek/
-            cc nob.c -o nob
-        cd ../
-    cd ../
     cd libbe/
         cd be/
             cc nob.c -o nob

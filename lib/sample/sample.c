@@ -82,8 +82,9 @@ enum layers {
 #define SAMPLE_APP_RESOURCE_PATH "resources/"
 #define SAMPLE_APP_SHADER_PATH SAMPLE_APP_RESOURCE_PATH "shaders/"
 #define SAMPLE_APP_SIMULATION_THREAD_COUNT 4
-void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings)
+void be_app_entry(struct be_engine *be_engine, struct be_app_settings *be_app_settings, struct cli_args args)
 {
+	UNUSED(args);
     be_app_settings->app_name                   = "test_app";
     be_app_settings->app_window_title           = "test app";
     be_app_settings->app_window_width           = 1200;

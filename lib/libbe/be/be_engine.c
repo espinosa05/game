@@ -1,7 +1,8 @@
 #include <be/be_engine.h>
 #include <be/be_app_entry.h>
-#include <core/log.h>
 #include <core/cstr.h>
+#include <core/log.h>
+#include <core/cli.h>
 #include <core/str_builder.h>
 #include <core/memory_macros.h>
 #include <core/os_util.h>
@@ -85,7 +86,7 @@ void be_push_layer(struct be_engine *be_engine, struct be_app_layer_spec spec)
 #define BLEEDING_EDGE_PERM_ARENA_SIZE (20*MB_SIZE)
 #define BLEEDING_EDGE_MAX_LAYERS USZ(16)
 
-void be_engine_init(struct be_engine *be_engine)
+void be_engine_init(struct be_engine *be_engine, struct cli_args args)
 {
     be_engine->close    = FALSE;
     be_engine->dt       = 0;
@@ -117,7 +118,7 @@ void be_engine_init(struct be_engine *be_engine)
 
     /* load data from the client application code */
     struct be_app_settings app_settings = BLEEDING_EDGE_DEFAULT_APP_SETTINGS;
-    be_app_entry(be_engine, &app_settings);
+    be_app_entry(be_engine, &app_settings, args);
 
     if (!shader_cache_exists(env, &init_arena)) {
         INFO_LOG("shader cache doesn't exist!");
@@ -248,11 +249,13 @@ static usz shader_type_from_string(const char *str)
 
 #define ASSET_PATH_PART_COUNT 2
 #define FILE_EXTENSION_PART 1
+
 static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena)
 {
     INFO_LOG("compiling "STR_QUOT(STR_FMT)"...", file);
     struct shader_compiler compiler = {0};
-    SC_CALL(sc_init(&compiler));
+    struct shader_compiler_info compiler_info = {0};
+    SC_CALL(sc_init(&compiler, compiler_info));
 
     char *ext = NULL;
     os_util_get_file_extension_ar(file, &ext, arena);
@@ -428,3 +431,4 @@ static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena)
     str_builder_to_cstr_ar(&sb, &cache_path, arena);
     return os_path_exists(cache_path);
 }
+

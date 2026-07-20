@@ -44,7 +44,7 @@ struct be_engine {
 
 void be_init_layers(struct be_engine *be_engine, usz layer_count);
 void be_push_layer(struct be_engine *be_engine, struct be_app_layer_spec layer);
-void be_engine_init(struct be_engine *be_engine);
+void be_engine_init(struct be_engine *be_engine, struct cli_args args);
 void be_engine_add_layer(struct be_engine *be_engine, struct be_app_layer *layer);
 void be_engine_run(struct be_engine *be_engine);
 void be_engine_delete(struct be_engine *be_engine);
