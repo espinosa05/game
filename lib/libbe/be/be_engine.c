@@ -20,6 +20,8 @@ struct be_environment {
 };
 
 /* static function declaration start */
+static void be_init_layers(struct be_engine *be_engine, usz init_layer_count);
+
 static void compile_shaders(struct be_environment env, struct m_arena *arena);
 static usz shader_type_from_string(const char *str);
 static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena);
@@ -34,6 +36,24 @@ static void present_image(struct be_engine *be_engine);
 static void transition_layers(struct be_engine *be_engine);
 static void load_environment(struct be_environment *env);
 static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena);
+
+static void be_core_on_attach(struct be_engine *be);
+static void be_core_on_detach(struct be_engine *be);
+static void be_core_on_update(struct be_engine *be);
+static void be_core_on_event(struct be_engine *be, struct wm_event event);
+static void be_core_on_suspend(struct be_engine *be);
+
+static void be_window_on_attach(struct be_engine *be);
+static void be_window_on_detach(struct be_engine *be);
+static void be_window_on_update(struct be_engine *be);
+static void be_window_on_event(struct be_engine *be, struct wm_event event);
+static void be_window_on_suspend(struct be_engine *be);
+
+static void be_diag_on_attach(struct be_engine *be);
+static void be_diag_on_detach(struct be_engine *be);
+static void be_diag_on_update(struct be_engine *be);
+static void be_diag_on_event(struct be_engine *be, struct wm_event event);
+static void be_diag_on_suspend(struct be_engine *be);
 /* static function declaration end */
 
 #undef UNUSED
@@ -44,30 +64,23 @@ static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena)
 #define IMPL()  do { } while (0)
 #define TODO(...) do { } while (0)
 
-void be_init_layers(struct be_engine *be_engine, usz layer_count)
-{
-    struct be_app_layer *buff = m_arena_alloc(&be_engine->permanent_memory, sizeof(struct be_app_layer), layer_count);
-    mm_array_init_ext(&be_engine->layers, buff, layer_count);
-}
-
 void be_push_layer(struct be_engine *be_engine, struct be_app_layer_spec spec)
 {
-    CHECK_NULL(spec.delete);
-    CHECK_NULL(spec.on_render);
+    CHECK_NULL(spec.on_attach);
+    CHECK_NULL(spec.on_detach);
     CHECK_NULL(spec.on_update);
     CHECK_NULL(spec.on_event);
-    CHECK_NULL(spec.suspend);
-    CHECK_NULL(spec.init);
+    CHECK_NULL(spec.on_suspend);
 
     struct be_app_layer layer = {0};
-    layer.delete = spec.delete;
-    layer.on_render = spec.on_render;
-    layer.on_update = spec.on_update;
-    layer.on_event = spec.on_event;
-    layer.suspend = spec.suspend;
+    layer.on_detach     = spec.on_detach;
+    layer.on_render     = spec.on_render;
+    layer.on_update     = spec.on_update;
+    layer.on_event      = spec.on_event;
+    layer.on_suspend    = spec.on_suspend;
     mm_array_append(&be_engine->layers, layer);
 
-    spec.init(be_engine);
+    spec.on_attach(be_engine);
 }
 
 #define BLEEDING_EDGE_EVENT_QUEUE_LENGTH USZ(128)
@@ -82,88 +95,70 @@ void be_push_layer(struct be_engine *be_engine, struct be_app_layer_spec spec)
                 .app_root_path              = "./",             \
             }
 
-#define BLEEDING_EDGE_INIT_ARENA_SIZE KB_SIZE
-#define BLEEDING_EDGE_PERM_ARENA_SIZE (20*MB_SIZE)
-#define BLEEDING_EDGE_MAX_LAYERS USZ(16)
-
 void be_engine_init(struct be_engine *be_engine, struct cli_args args)
 {
-    be_engine->close    = FALSE;
-    be_engine->dt       = 0;
+    be_init_layers(be_engine);
+    be_push_layer(be_engine, BE_LAYER_SPEC(be_core));
+    be_push_layer(be_engine, BE_LAYER_SPEC(be_window));
 
-    os_time_init(&be_engine->frame_start);
-    os_time_init(&be_engine->frame_end);
-
-    /* Temporary setup arena */
-    struct m_arena init_arena = {0};
-    struct m_arena_info init_arena_info = {0};
-    init_arena_info.buffer      = U8_ARR(BLEEDING_EDGE_INIT_ARENA_SIZE, 0);
-    init_arena_info.mem_size    = BLEEDING_EDGE_INIT_ARENA_SIZE;
-    init_arena_info.external    = TRUE;
-    m_arena_init(&init_arena, init_arena_info);
-
-    /* initialize context memory */
-    static u8 permanent_buffer[BLEEDING_EDGE_PERM_ARENA_SIZE] = {0};
-    struct m_arena_info permanent_arena_info = {0};
-    permanent_arena_info.buffer     = permanent_buffer;
-    permanent_arena_info.mem_size   = sizeof(permanent_buffer);
-    permanent_arena_info.external   = TRUE;
-    m_arena_init(&be_engine->permanent_memory, permanent_arena_info);
-
-    /* initialize layers */
-    mm_array_init_ar(&be_engine->layers, BLEEDING_EDGE_MAX_LAYERS, &be_engine->permanent_memory);
-
-    struct be_environment env = {0};
-    load_environment(&env);
-
-    /* load data from the client application code */
-    struct be_app_settings app_settings = BLEEDING_EDGE_DEFAULT_APP_SETTINGS;
     be_app_entry(be_engine, &app_settings, args);
 
-    if (!shader_cache_exists(env, &init_arena)) {
-        INFO_LOG("shader cache doesn't exist!");
-        compile_shaders(env, &init_arena);
-    }
-
-    mm_array_init_ar(&be_engine->events, BLEEDING_EDGE_EVENT_QUEUE_LENGTH, &be_engine->permanent_memory);
-    wm_init(&be_engine->wm);
-    struct wm_window_info main_window_info = {0};
-    main_window_info.initial_title  = app_settings.app_window_title;
-    main_window_info.force_size     = TRUE;
-    main_window_info.width          = app_settings.app_window_width;
-    main_window_info.height         = app_settings.app_window_height;
-    main_window_info.x_pos          = X_POS_CENTERED;
-    main_window_info.y_pos          = Y_POS_CENTERED;
-    wm_window_create(&be_engine->wm, &be_engine->main_window, main_window_info);
-    wm_window_show(&be_engine->wm, &be_engine->main_window);
+    be_push_layer(be_engine, BE_LAYER_SPEC(be_diag));
 }
 
 void be_engine_run(struct be_engine *be_engine)
 {
-    while (!should_close(be_engine)) {
-        tick_start(be_engine);
-
-        poll_events(be_engine);
-        handle_events(be_engine);
-
-        update(be_engine);
-        render(be_engine);
-
-        present_image(be_engine);
-
-        transition_layers(be_engine);
-        tick_end(be_engine);
-    }
+    be_update_layers(be_engine);
 }
 
 void be_engine_delete(struct be_engine *be_engine)
 {
-    wm_shutdown(&be_engine->wm);
+    be_delete_layers(be_engine);
 }
 
 void be_engine_set_close(volatile struct be_engine *be_engine)
 {
     be_engine->close = TRUE;
+}
+
+static void new_allocator_link(struct be_allocator **allocator, usz size)
+{
+}
+
+static void delete_allocator_link(struct be_allocator *allocator)
+{
+}
+
+static void be_init_layers(struct be_engine *be_engine, usz init_layer_count)
+{
+    struct be_app_layer *buff = be_alloc_permanent(&be_engine->memory, sizeof(struct be_app_layer), layer_count);
+    mm_array_init_ext(&be_engine->layers, buff, layer_count);
+}
+
+static void be_allocator_init(struct be_allocator *allocator, usz init_size)
+{
+}
+
+static void be_allocator_refresh(struct be_allocator *allocator)
+{
+
+}
+
+static void *be_alloc_permanent(struct be_memory *memory, usz chunk, usz count)
+{
+
+}
+
+static void *be_memory_refresh(struct be_memory *memory)
+{
+}
+
+static void *be_alloc_transient(struct be_memory *memory, usz chunk, usz count)
+{
+}
+
+static void be_memory_init(struct be_memory *memory, const struct be_memory_info info)
+{
 }
 
 #define SHADER_CACHE_SUB_DIR "shader_cache/"
@@ -255,6 +250,8 @@ static void compile_shader_file(const char *file, const char *cache_path, struct
     INFO_LOG("compiling "STR_QUOT(STR_FMT)"...", file);
     struct shader_compiler compiler = {0};
     struct shader_compiler_info compiler_info = {0};
+    compiler_info.language = SC_SHADER_LANGUAGE_GLSL;
+    compiler_info.target = SC_SHADER_TARGET_SPIRV;
     SC_CALL(sc_init(&compiler, compiler_info));
 
     char *ext = NULL;
@@ -432,3 +429,68 @@ static b32 shader_cache_exists(struct be_environment env, struct m_arena *arena)
     return os_path_exists(cache_path);
 }
 
+static void be_core_on_attach(struct be_engine *be)
+{
+    struct wm wm = {0};
+    wm_init(&wm);
+
+    struct wm_window main_window = {0};
+    struct wm_window_info main_window_info = {0};
+    main_window_info.title  = "test";
+    main_window_info.width  = 1200;
+    main_window_info.height = 720;
+    main_window_info.x_pos  = X_POS_CENTERED;
+    main_window_info.y_pos  = Y_POS_CENTERED;
+    WM_CALL(wm_window_init(&main_window, main_window_info));
+
+    struct be_memory memory = {0};
+    struct be_memory_info memory_info = {0};
+    memory_info.transient_init_size = MB(2);
+    memory_info.permanent_init_size = MB(14);
+    be_memory_init(&memory, memory_info);
+
+    struct be_environment env = {0};
+    load_environment(&env);
+
+    struct m_arena init_arena = {0};
+    struct m_arena_info init_arena_info = {0};
+    init_arena_info.mem_size    = KB(10);
+    init_arena_info.buffer      = U8_ARR(KB(10));
+    init_arena_info.external    = TRUE;
+    m_arena_init(&init_arena, init_arena_info);
+
+    compile_shaders(&env, &init_arena);
+}
+
+static void be_core_on_detach(struct be_engine *be)
+{
+
+}
+
+static void be_core_on_update(struct be_engine *be)
+{
+
+}
+
+static void be_core_on_event(struct be_engine *be, struct wm_event event)
+{
+
+}
+
+static void be_core_on_suspend(struct be_engine *be)
+{
+
+}
+
+static void be_core_on_resume()
+{
+
+}
+
+/*
+static void be_window_init(struct be_engine *be)
+static void be_window_delete(struct be_engine *be);
+static void be_window_on_update(struct be_engine *be);
+static void be_window_on_event(struct be_engine *be, struct wm_event event);
+static void be_window_suspend(struct be_engine *be);
+*/
