@@ -1,0 +1,49 @@
+#ifndef __BE_BE_ENGINE_H__
+#define __BE_BE_ENGINE_H__
+
+#include <core/wm.h>
+#include <core/os.h>
+#include <be/be_arena.h>
+#include <core/memory_macros.h>
+#include <be/be_app_entry.h>
+
+struct be_layers {
+    MM_ARRAY_MEMBERS(struct be_layer);
+};
+
+struct be_frame_time {
+    struct os_time start;
+    struct os_time end;
+};
+
+struct be_engine {
+    b32 run;
+    f64 delta;
+    struct be_frame_time frame_time;
+
+    struct be_arena transient;
+    struct be_arena permanent;
+    struct be_layers layers;
+};
+/*
+void be_push_layer(struct be_engine *be_engine, struct be_layer_spec layer);
+u64 be_layer_id(const char *string);
+struct be_layer *be_get_layer_by_name(struct be_engine *be_engine, char *id_str);
+void be_detach_layer_by_name(struct be_engine *be, char *id_str);
+
+struct be_layer *be_get_layer_by_id(struct be_engine *be_engine, u64 id);
+void be_detach_layer_by_id(struct be_engine *be_engine, u64 id);
+
+void be_engine_init(struct be_engine *be_engine, struct cli_args args);
+void be_engine_run(struct be_engine *be_engine);
+void be_engine_delete(struct be_engine *be_engine);
+
+void *be_alloc_perm(struct be_engine *be_engine, usz chunk, usz count);
+void *be_alloc_tran(struct be_engine *be_engine, usz chunk, usz count);
+
+void be_frame_time_init(struct be_frame_time *frame_time);
+void be_frame_start(struct be_engine *be_engine);
+void be_frame_end(struct be_engine *be_engine);
+*/
+
+#endif /* __BE_BE_ENGINE_H__ */

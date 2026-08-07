@@ -1,0 +1,534 @@
+#include <be/be_engine.h>
+#include <be/be_app_entry.h>
+#include <core/cstr.h>
+#include <core/hash.h>
+#include <core/log.h>
+#include <core/cli.h>
+#include <core/str_builder.h>
+#include <core/memory_macros.h>
+#include <core/os_util.h>
+#include <core/os_thread.h>
+#include <core/os_directory.h>
+#include <core/os_path.h>
+#include <core/wm_utils.h>
+#include <core/shader_compiler.h>
+
+struct be_env {
+    char *config_root;
+    char *state_root;
+    char *storage_root;
+    char *cache_root;
+};
+
+struct be_window {
+    struct wm wm;
+    struct wm_window main_window;
+};
+
+/* static function declaration start */
+static void be_init_layers(struct be_engine *be_engine, usz init_layer_count);
+static void be_update_layers(struct be_engine *engine);
+
+static void compile_shaders(struct be_env env, struct m_arena *arena);
+static usz shader_type_from_string(const char *str);
+static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena);
+static void load_env(struct be_env *env);
+static b32 shader_cache_exists(struct be_env env, struct m_arena *arena);
+
+static void be_arena_chunk_init(struct be_arena_chunk **chunk, usz size);
+
+static struct be_core *be_core_on_attach(struct be_engine *be);
+static void be_core_on_detach(struct be_engine *be, struct be_core *core);
+static void be_core_on_update(struct be_engine *be, struct be_core *core);
+static void be_core_on_event(struct be_engine *be, struct be_core *core, struct wm_event event);
+
+static struct be_input *be_input_on_attach(struct be_engine *be);
+static void be_input_on_detach(struct be_engine *be, struct be_input *in);
+static void be_input_on_update(struct be_engine *be, struct be_input *in);
+static void be_input_on_event(struct be_engine *be, struct be_input *in, struct wm_event event);
+
+static struct be_window *be_window_on_attach(struct be_engine *be);
+static void be_window_on_detach(struct be_engine *be, struct be_window *win);
+static void be_window_on_update(struct be_engine *be, struct be_window *win);
+static void be_window_on_event(struct be_engine *be, struct be_window *win, struct wm_event event);
+/* static function declaration end */
+
+#undef UNUSED
+#undef IMPL
+#undef TODO
+
+#define UNUSED(x) (void)x
+#define IMPL()  do { } while (0)
+#define TODO(...) do { } while (0)
+
+void be_push_layer(struct be_engine *be_engine, struct be_layer_spec spec)
+{
+    CHECK_NULL(spec.id_str);
+    CHECK_NULL(spec.on_attach);
+    CHECK_NULL(spec.on_detach);
+    CHECK_NULL(spec.on_update);
+    CHECK_NULL(spec.on_event);
+
+    INFO_LOG("pushing new layer");
+    struct be_layer layer = {0};
+    layer.id            = be_layer_id(spec.id_str);
+    layer.context       = BE_CONTEXT(spec.on_attach(be_engine));
+    layer.on_detach     = spec.on_detach;
+    layer.on_update     = spec.on_update;
+    layer.on_event      = spec.on_event;
+    mm_array_append(&be_engine->layers, layer);
+
+    INFO_LOG(BE_LAYER_SPEC_FMT, BE_LAYER_SPEC_FMT_ARG(spec));
+    INFO_LOG("("STR_FMT") { context: "PTR_FMT" }", spec.id_str, layer.context);
+}
+
+u64 be_layer_id(const char *string)
+{
+    return hash_djb2(string);
+}
+
+/* this is fine since we don't expect the application to have too many layers */
+struct be_layer *be_get_layer_by_name(struct be_engine *be_engine, char *id_str)
+{
+    struct be_layer *target = NULL;
+    u64 id = be_layer_id(id_str);
+
+    for (EACH_BE_LAYER(layer, be_engine->layers)) {
+        if (layer->id == id) {
+            target = layer;
+        }
+    }
+
+    return target;
+}
+
+void be_detach_layer_by_name(struct be_engine *be, char *id_str)
+{
+    struct be_layer *layer = be_get_layer_by_name(be, id_str);
+    layer->on_detach(be, layer->context);
+    mm_array_remove_ref(be->layers, layer);
+}
+
+struct be_layer *be_get_layer_by_id(struct be_engine *be_engine, u64 id)
+{
+    struct be_layers *layers = be_engine->layers.
+    for (usz i = 0; i < layers.count; ++i) {
+        struct be_layer *layer = &layers.data[i];
+        if (!layer.active)
+            continue;
+
+        if (layer.id == id) {
+
+        }
+    }
+}
+
+void be_detach_layer_by_id(struct be_engine *be_engine, u64 id);
+
+#define BLEEDING_EDGE_INIT_LAYER_COUNT 8
+#define BLEEDING_EDGE_EVENT_QUEUE_LENGTH USZ(128)
+
+void be_engine_init(struct be_engine *be_engine, struct cli_args args)
+{
+    be_engine->run = TRUE;
+    be_engine->delta = F64(0);
+    be_frame_time_init(&be_engine->frame_time);
+    be_arena_init(&be_engine->permanent, MB(8));
+    be_arena_init(&be_engine->transient, MB(8));
+
+    be_init_layers(be_engine, BLEEDING_EDGE_INIT_LAYER_COUNT);
+    {
+        be_push_layer(be_engine, BE_LAYER_SPEC(be_core));
+        be_push_layer(be_engine, BE_LAYER_SPEC(be_window));
+        be_app_entry(be_engine, args);
+        be_push_layer(be_engine, BE_LAYER_SPEC(be_render));
+    }
+}
+
+void be_engine_run(struct be_engine *be_engine)
+{
+    while (be_engine_run(be_engine)) {
+        be_frame_time_start(be_engine);
+        be_update_layers(be_engine);
+        be_frame_time_end(be_engine);
+    }
+}
+
+void be_engine_delete(struct be_engine *be_engine)
+{
+    UNUSED(be_engine);
+}
+
+void *be_alloc_perm(struct be_engine *be_engine, usz chunk, usz count)
+{
+    return be_arena_alloc(&be_engine->permanent, chunk, count);
+}
+
+void *be_alloc_tran(struct be_engine *be_engine, usz chunk, usz count)
+{
+    return be_arena_alloc(&be_engine->transient, chunk, count);
+}
+
+void be_frame_time_init(struct be_frame_time *frame_time)
+{
+    os_time_init(&frame_time->start);
+    os_time_init(&frame_time->end);
+}
+
+void be_frame_time_start(struct be_engine *be_engine)
+{
+    os_time_get_monotonic(&be_engine->frame_time.start);
+}
+
+void be_frame_time_end(struct be_engine *be_engine)
+{
+    os_time_get_monotonic(&be_engine->frame_time.end);
+
+    struct os_time frame_time = {0};
+    os_time_get_diff(&frame_time, be_engine->frame_time.start, be_engine->frame_time.end);
+    be_engine->delta = os_time_get_msec(frame_time);
+}
+
+void be_arena_init(struct be_arena *arena, usz init_size)
+{
+    be_arena_chunk_init(&arena->first, init_size);
+    arena->last = arena->first;
+}
+
+void *be_arena_get(struct be_arena *arena)
+{
+    return U8_PTR(arena->last->base) + arena->last->used;
+}
+
+void *be_arena_alloc(struct be_arena *arena, usz chunk, usz count)
+{
+    usz alloc_size = chunk * count;
+    struct be_arena_chunk *last = arena->last;
+
+    if (UNLIKELY(alloc_size > last->count - last->used)) {
+        struct be_arena_chunk *new_last = NULL;
+        usz new_size = alloc_size > last->count ? alloc_size : last->count;
+        be_arena_chunk_init(&new_last, new_size);
+        arena->last->next = new_last;
+        arena->last = new_last;
+    }
+
+    void *buff = last->base;
+    arena->last->used += alloc_size;
+
+    return buff;
+}
+
+void be_arena_clear(struct be_arena *arena)
+{
+    struct be_arena_chunk *chunk = arena->first;
+    usz total_size = 0;
+
+    while (chunk) {
+        struct be_arena_chunk *save = chunk;
+        total_size += chunk->used;
+        m_free(save);
+        chunk = chunk->next;
+    }
+
+    arena->prev_total_size = total_size;
+    be_arena_init(arena, total_size);
+}
+
+static void be_init_layers(struct be_engine *be_engine, usz init_layer_count)
+{
+    struct be_layer *buff = be_alloc_perm(be_engine, sizeof(struct be_layer), init_layer_count);
+    mm_array_init_ext(&be_engine->layers, buff, init_layer_count);
+}
+
+static void be_layers_on_update(struct be_engine *engine)
+{
+    struct be_layers *layers = &engine->layers;
+    for (EACH_BE_LAYER(layer, layers)) {
+        layer.on_update(engine, layer.context);
+    }
+}
+
+#define SHADER_CACHE_SUB_DIR "shader_cache/"
+#define SHADER_SRC_SUB_DIR "shader_src/"
+
+/* almost all resource directory paths are made up of the "root" and one sub directory */
+#define RSRC_PATH_PART_COUNT 2
+
+static void compile_shaders(struct be_env env, struct m_arena *arena)
+{
+    /* build shader cache path */
+    struct str_builder app_shader_cache_path = {0};
+    str_builder_init_ar(&app_shader_cache_path, RSRC_PATH_PART_COUNT, arena);
+    SB_CALL(str_builder_append(&app_shader_cache_path, env.cache_root));
+    SB_CALL(str_builder_append(&app_shader_cache_path, SHADER_CACHE_SUB_DIR));
+
+    char *shader_cache_dir_name = NULL;
+    str_builder_to_cstr_ar(&app_shader_cache_path, &shader_cache_dir_name, arena);
+    os_dir_create(shader_cache_dir_name);
+
+    /* builder shader source path */
+    struct str_builder app_shader_source_dir_path = {0};
+    str_builder_init_ar(&app_shader_source_dir_path, RSRC_PATH_PART_COUNT, arena);
+    SB_CALL(str_builder_append(&app_shader_source_dir_path, env.storage_root));
+    SB_CALL(str_builder_append(&app_shader_source_dir_path, SHADER_SRC_SUB_DIR));
+
+    char *shader_source_dir_name = NULL;
+    str_builder_to_cstr_ar(&app_shader_source_dir_path, &shader_source_dir_name, arena);
+    INFO_LOG(STR_SYM_MSG(shader_source_dir_name));
+
+    ASSERT_RT(os_path_exists(shader_source_dir_name), "Corrupted Asset data. Shader directory "STR_QUOT(STR_FMT)" not found. "
+                                                      "Fix installation before continuing!",
+                                                      shader_source_dir_name);
+
+    /* open shader source path  */
+    struct os_dir shader_source_dir = {0};
+    struct os_dir_info shader_source_dir_info = {0};
+    shader_source_dir_info.path = shader_source_dir_name;
+    shader_source_dir_info.perm = DPERM_READ;
+    os_dir_open(&shader_source_dir, shader_source_dir_info);
+
+    /* open shader source files */
+    struct os_paths shader_source_file_paths = {0};
+    os_dir_get_file_paths_ar(&shader_source_dir, &shader_source_file_paths, arena);
+
+    /* compile shader source files into shader cache */
+    for (usz i = 0; i < shader_source_file_paths.count; ++i) {
+        compile_shader_file(shader_source_file_paths.data[i], shader_cache_dir_name, arena);
+    }
+
+    os_dir_close(&shader_source_dir);
+}
+
+#define SHADER_EXT_VERTEX_STR                   "vert"
+#define SHADER_EXT_TESSELATION_CONTROL_STR      "tesc"
+#define SHADER_EXT_TESSELATION_EVALUATION_STR   "tese"
+#define SHADER_EXT_GEOMETRY_STR                 "geom"
+#define SHADER_EXT_FRAGMENT_STR                 "frag"
+#define SHADER_EXT_COMPUTE_STR                  "comp"
+
+static usz shader_type_from_string(const char *str)
+{
+    usz type = 0;
+
+    if (cstr_compare(str, SHADER_EXT_VERTEX_STR)) {
+        type = SHADER_TYPE_VERTEX;
+    } else if (cstr_compare(str, SHADER_EXT_TESSELATION_CONTROL_STR)) {
+        type = SHADER_TYPE_TESSELATION_CONTROL;
+    } else if (cstr_compare(str, SHADER_EXT_TESSELATION_EVALUATION_STR)) {
+        type = SHADER_TYPE_TESSELATION_EVALUATION;
+    } else if (cstr_compare(str, SHADER_EXT_GEOMETRY_STR)) {
+        type = SHADER_TYPE_GEOMETRY;
+    } else if (cstr_compare(str, SHADER_EXT_FRAGMENT_STR)) {
+        type = SHADER_TYPE_FRAGMENT;
+    } else if (cstr_compare(str, SHADER_EXT_COMPUTE_STR)) {
+        type = SHADER_TYPE_COMPUTE;
+    } else {
+        type = SHADER_TYPE_NULL;
+    }
+
+    return type;
+}
+
+#define ASSET_PATH_PART_COUNT 2
+#define FILE_EXTENSION_PART 1
+
+static void compile_shader_file(const char *file, const char *cache_path, struct m_arena *arena)
+{
+    INFO_LOG("compiling "STR_QUOT(STR_FMT)"...", file);
+    struct shader_compiler compiler = {0};
+    struct shader_compiler_info compiler_info = {0};
+    compiler_info.language = SC_SHADER_LANGUAGE_GLSL;
+    compiler_info.target = SC_SHADER_TARGET_SPIRV;
+    SC_CALL(sc_init(&compiler, compiler_info));
+
+    char *ext = NULL;
+    os_util_get_file_extension_ar(file, &ext, arena);
+
+    usz shader_type = shader_type_from_string(ext);
+    ASSERT_RT(shader_type != SHADER_TYPE_NULL, "entry "STR_QUOT(STR_FMT)" found within shader directory "
+                                               "is missing shader file extension: "
+                                               STR_QUOT(SHADER_EXT_VERTEX_STR)", "
+                                               STR_QUOT(SHADER_EXT_TESSELATION_CONTROL_STR)", "
+                                               STR_QUOT(SHADER_EXT_TESSELATION_EVALUATION_STR)", "
+                                               STR_QUOT(SHADER_EXT_GEOMETRY_STR)", "
+                                               STR_QUOT(SHADER_EXT_FRAGMENT_STR)" or "
+                                               STR_QUOT(SHADER_EXT_COMPUTE_STR),
+                                               file);
+
+    struct string shader_source = {0};
+    os_util_read_file_ar(file, &shader_source, arena);
+
+    struct m_buffer binary = {0};
+    struct shader_source_info shader_info = {0};
+    shader_info.type    = shader_type;
+    shader_info.source  = shader_source;
+    SC_CALL(sc_compile_source(&compiler, shader_info, &binary, arena));
+    SC_CALL(sc_shutdown(&compiler));
+
+    char *binary_file_path = NULL;
+    struct str_builder binary_file_path_builder = {0};
+    str_builder_init_ar(&binary_file_path_builder, ASSET_PATH_PART_COUNT + FILE_EXTENSION_PART, arena);
+    str_builder_append(&binary_file_path_builder, file);
+    str_builder_append(&binary_file_path_builder, SHADER_BINARY_EXT_STR);
+    str_builder_to_cstr_ar(&binary_file_path_builder, &binary_file_path, arena);
+
+    INFO_LOG(STR_SYM_MSG(binary_file_path));
+    struct os_file binary_file = {0};
+    struct os_file_info binary_file_info = {0};
+    binary_file_info.path = binary_file_path;
+    binary_file_info.perm = FPERM_READ_AND_WRITE;
+    OS_FILE_CALL(os_file_create(&binary_file, binary_file_info));
+    OS_FILE_CALL(os_file_write_buff(&binary_file, binary.size, &binary));
+
+    os_file_close(&binary_file);
+}
+
+#define APP_ROOT_PATH_KEY   "BE_APP_ROOT_PATH"
+#define APP_SAVE_PATH_KEY   "BE_APP_SAVE_PATH"
+#define APP_STATE_PATH_KEY  "BE_APP_STATE_PATH"
+#define APP_CACHE_PATH_KEY  "BE_APP_CACHE_PATH"
+
+/* these are all relative to the execution path */
+#define APP_CONFIG_ROOT_FALLBACK    "./config/"
+#define APP_STATE_ROOT_FALLBACK     "./state/"
+#define APP_STORAGE_ROOT_FALLBACK   "./"
+#define APP_CACHE_ROOT_FALLBACK     "./cache/"
+
+static void load_env(struct be_env *env)
+{
+    os_get_env(&env->config_root, APP_STATE_PATH_KEY);
+    if (!env->config_root) {
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_STATE_PATH_KEY, APP_CONFIG_ROOT_FALLBACK);
+        env->config_root = APP_CONFIG_ROOT_FALLBACK;
+    }
+
+    os_get_env(&env->state_root, APP_STATE_PATH_KEY);
+    if (!env->state_root) {
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_SAVE_PATH_KEY, APP_STATE_ROOT_FALLBACK);
+        env->state_root = APP_STATE_ROOT_FALLBACK;
+    }
+
+    os_get_env(&env->storage_root, APP_SAVE_PATH_KEY);
+    if (!env->storage_root) {
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_SAVE_PATH_KEY, APP_STORAGE_ROOT_FALLBACK);
+        env->storage_root = APP_STORAGE_ROOT_FALLBACK;
+    }
+
+    os_get_env(&env->cache_root, APP_CACHE_PATH_KEY);
+    if (!env->cache_root) {
+        INFO_LOG("$"STR_FMT" not set. setting fallback: "STR_QUOT(STR_FMT)" (relative to executable)", APP_CACHE_PATH_KEY, APP_CACHE_ROOT_FALLBACK);
+        env->cache_root = APP_CACHE_ROOT_FALLBACK;
+    }
+}
+
+static b32 shader_cache_exists(struct be_env env, struct m_arena *arena)
+{
+    struct str_builder sb = {0};
+    str_builder_init_ar(&sb, 2, arena);
+    str_builder_append(&sb, env.cache_root);
+    str_builder_append(&sb, SHADER_CACHE_SUB_DIR);
+
+    char *cache_path = NULL;
+    str_builder_to_cstr_ar(&sb, &cache_path, arena);
+    return os_path_exists(cache_path);
+}
+
+static void be_arena_chunk_init(struct be_arena_chunk **chunk, usz size)
+{
+    usz alloc_size = sizeof(struct be_arena_chunk) + size;
+    *chunk = m_alloc(BYTE_SIZE, alloc_size);
+    (*chunk)->next = NULL;
+    (*chunk)->count = size;
+    (*chunk)->used = 0;
+    (*chunk)->base = U8_PTR(*chunk) + sizeof(struct be_arena_chunk);
+}
+
+static struct be_core *be_core_on_attach(struct be_engine *be)
+{
+    struct be_core *core = be_alloc_perm(be->memory, sizeof(*core), 1);
+
+    struct m_arena init_arena = {0};
+    struct m_arena_info init_arena_info = {0};
+    init_arena_info.base = U8_ARR(KB(1), 0);
+    init_arena_info.size = KB(1);
+    m_arena_init(&init_arena, init_arena_size);
+
+    struct be_env env = {0};
+    be_load_env(&env);
+
+    compile_shaders(env, &init_arena);
+
+    return core;
+}
+
+static void be_core_on_detach(struct be_engine *be, struct be_core *core)
+{
+    UNUSED(be);
+    UNUSED(core);
+}
+
+static void be_core_on_update(struct be_engine *be, struct be_core *core)
+{
+    UNUSED(be);
+    UNUSED(core);
+}
+
+static void be_core_on_resume(struct be_engine *be, struct be_core *core)
+{
+    UNUSED(be);
+    UNUSED(core);
+}
+
+static struct be_input *be_input_on_attach(struct be_engine *be)
+{
+
+}
+
+static void be_input_on_detach(struct be_engine *be, struct be_input *in)
+{
+
+}
+
+static void be_input_on_update(struct be_engine *be, struct be_input *in)
+{
+
+}
+
+static struct be_window *be_window_on_attach(struct be_engine *be)
+{
+    struct be_window *win = be_alloc_perm(be, sizeof(*win), 1);
+
+    struct be_layer *window_settings = be_get_layer_by_name("window_settings");
+    ASSERT(win_settings, "Client must provide a "STR_QUOT("window_settings")" layer!");
+
+    /* copy the window settings and cleanup the layer */
+    struct wm_window_info main_window_info = *window_settings->context;
+    be_detach_layer_by_name(be, "window_settings");
+
+    wm_init(&win->wm);
+    wm_window_create(&win->wm, &win->main_window, main_window_info);
+
+    return win;
+}
+
+static void be_window_on_detach(struct be_engine *be, struct be_window *win)
+{
+    be_detach_layer_by_name(be, "be_input");
+
+    wm_window_close(&win->wm, &win->main_window);
+    wm_shutdown(&win->wm);
+}
+
+static void be_window_on_update(struct be_engine *be, struct be_window *win)
+{
+    UNUSED(be);
+    UNUSED(win);
+}
+
+static void be_window_on_event(struct be_engine *be, struct be_window *win, struct wm_event event)
+{
+    UNUSED(be);
+    UNUSED(event);
+    UNUSED(win);
+}

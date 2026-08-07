@@ -11,7 +11,7 @@ CORE_LIB_DIR=$CORE_BASE_DIR/core
 
 CORE_OUT_DIR=$CORE_LIB_DIR/out
 
-gcc -c entities.c -I $CORE_INC_DIR
-gcc entities.o $CORE_OUT_DIR/libcore.a -o entities -lvulkan -lxcb -lxcb-icccm -lxcb-keysyms
+gcc -c ntt.c -I $CORE_INC_DIR
+gcc ntt.o $CORE_OUT_DIR/libcore.a -o ntt -lvulkan -lxcb -lxcb-icccm -lxcb-keysyms
 
-./entities
+./ntt
