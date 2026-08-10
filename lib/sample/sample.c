@@ -8,13 +8,49 @@
 #include <core/wm_utils.h>
 #include <core/log.h>
 
+#include "sample.h"
+
 static struct wm_window_info *window_settings_on_attach(BeEngine *be);
 static void window_settings_on_detach(BeEngine *be, struct wm_window_info *info);
 
 void be_app_entry(BeEngine *be, struct cli_args args)
 {
     UNUSED(args);
+    /* required engine configuration structure */
     be_push_layer(be, BE_LAYER_CONTEXT_ONLY(window_settings));
+    /* game logic layer */
+    be_push_layer(be, BE_LAYER_SPEC(sample));
+}
+
+SampleData *sample_on_attach(BeEngine *be, SampleData *sd)
+{
+    SampleData *data = be_alloc_perm(be, sizeof(*data), 1);
+
+    return data;
+}
+
+void sample_on_detach(BeEngine *be, SampleData *sd)
+{
+    UNUSED(be);
+    UNUSED(sd);
+}
+
+void sample_on_suspend(BeEngine *be, SampleData *sd)
+{
+    UNUSED(be);
+    UNUSED(sd);
+}
+
+void sample_on_activate(BeEngine *be, SampleData *sd)
+{
+    UNUSED(be);
+    UNUSED(sd);
+}
+
+void sample_on_event(BeEngine *be, SampleData *sd)
+{
+    UNUSED(be);
+    UNUSED(sd);
 }
 
 static struct wm_window_info *window_settings_on_attach(BeEngine *be)

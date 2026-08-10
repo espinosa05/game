@@ -1,5 +1,6 @@
 #include <be/be_engine.h>
 #include <be/be_core.h>
+#include <be/be_render.h>
 #include <be/be_window.h>
 #include <be/be_app_entry.h>
 
@@ -84,6 +85,12 @@ void *be_arena_alloc(BeArena *arena, usz chunk, usz count)
 void be_arena_clear(BeArena *arena)
 {
     UNUSED(arena);
+}
+
+void be_arena_delete(BeArena *arena)
+{
+    be_arena_clear(arena);
+    be_arena_chunk
 }
 
 void *be_alloc_perm(BeEngine *be, usz chunk, usz count)
@@ -206,6 +213,7 @@ void be_engine_init(BeEngine *be, struct cli_args args)
 
     init_overlays(be, BLEEDING_EDGE_INIT_LAYER_COUNT);
     {
+        be_push_overlay(be, BE_RENDER_LAYER_SPEC);
         be_push_overlay(be, BE_WINDOW_LAYER_SPEC);
     }
 }

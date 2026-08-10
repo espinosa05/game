@@ -25,5 +25,6 @@ typedef struct {
 void be_arena_init(BeArena *arena, usz init_size);
 void *be_arena_alloc(BeArena *arena, usz chunk, usz count);
 void be_arena_clear(BeArena *arena);
+void be_arena_delete(BeArena *arena);
 
 #endif /* __BE_BE_ARENA_H__ */

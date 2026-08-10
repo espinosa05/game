@@ -6,7 +6,8 @@
 BeWindow *be_window_on_attach(BeEngine *be)
 {
     BeWindow *window = be_alloc_perm(be, sizeof(*window), 1);
-    mm_stack_init_ext(&window->events, be_alloc_perm(be, sizeof(*window->events.data), 32), 32);
+    void *buff = be_alloc_perm(be, sizeof(*window->events.data), 32);
+    mm_stack_init_ext(&window->events, buff, 32);
 
     BeLayer *wi_layer = be_get_layer_by_name(be, "window_settings");
     ASSERT(wi_layer, "client must provide a "STR_QUOT("window_settings")"layer with struct wm_window_info!");
