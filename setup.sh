@@ -8,6 +8,7 @@ build_nob() {
 
 PROJECT="sample/"
 LIBCORE_SRCD="lib/libcore/core/"
+LIBNTT_SRCD="lib/libntt/ntt/"
 LIBBE_SRCD="lib/libbe/be/"
 PROJECT_SRCD="projects/$PROJECT"
 
@@ -22,5 +23,6 @@ echo "continuing with $PROJECT..."
 set -x
 build_nob .
 build_nob $LIBCORE_SRCD
+build_nob $LIBNTT_SRCD
 build_nob $LIBBE_SRCD
 build_nob $PROJECT_SRCD

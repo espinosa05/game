@@ -3,16 +3,18 @@
 
 #include <core/types.h>
 
-typedef struct {
-    void *next;
+struct s_be_arena_chunk;
+struct s_be_arena_chunk {
+    struct s_be_arena_chunk *next;
     usz count;
     usz used;
     void *base;
-} BeArenaChunk;
+};
+typedef struct s_be_arena_chunk BeArenaChunk;
+
 void be_arena_chunk_init_ext(BeArenaChunk *chunk, void *base, usz size);
 BeArenaChunk *be_arena_chunk_extend(BeArenaChunk *chunk, usz size);
 void *be_arena_chunk_get(BeArenaChunk *chunk);
-
 
 typedef struct {
     usz prev_total_size;

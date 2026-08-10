@@ -260,7 +260,7 @@ static void compile_shaders(struct be_env env, struct m_arena *arena)
     /* build shader cache path */
     struct str_builder app_shader_cache_path = {0};
     str_builder_init_ar(&app_shader_cache_path, RSRC_PATH_PART_COUNT, arena);
-    SB_CALL(str_builder_append(&app_shader_cache_path, env.cache_root));
+        SB_CALL(str_builder_append(&app_shader_cache_path, env.cache_root));
     SB_CALL(str_builder_append(&app_shader_cache_path, SHADER_CACHE_SUB_DIR));
 
     char *shader_cache_dir_name = NULL;

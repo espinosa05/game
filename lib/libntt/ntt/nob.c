@@ -6,8 +6,8 @@
 #define OUT_DIR "out/"
 
 #define CC      "gcc"
-#define CFLAGS  get_libntt_inc(), get_libcore_inc(), "-I../include", "-g", "-Wall", "-Wextra", "-Werror", "-c"
-#define LIBNAME "be"
+#define CFLAGS  get_libcore_inc(), "-I../include", "-g", "-Wall", "-Wextra", "-Werror", "-c"
+#define LIBNAME "ntt"
 
 #define AR      "ar"
 #define ARFLAGS "rcs"
@@ -35,24 +35,10 @@ const char *check_getenv(const char *key)
     return value;
 }
 
-const char *get_libntt_inc(void)
-{
-    static char inc_dir[PATH_MAX + 1] = {0};
-    static bool once_flag = false;
-
-    if (once_flag == false) {
-        strncpy(inc_dir, "-I", NOB_ARRAY_LEN(inc_dir));
-        strncat(inc_dir, check_getenv("LIB_NTT_INCLUDE_DIR"), NOB_ARRAY_LEN(inc_dir)-strlen(inc_dir));
-    }
-    once_flag = true;
-
-    return inc_dir;
-}
-
 const char *get_libcore_inc(void)
 {
     static char inc_dir[PATH_MAX + 1] = {0};
-    static bool once_flag = false;
+    bool once_flag = false;
 
     if (once_flag == false) {
         strncpy(inc_dir, "-I", NOB_ARRAY_LEN(inc_dir));
