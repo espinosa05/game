@@ -63,6 +63,7 @@ typedef struct {
 #define BE_LAYER_SPEC_FMT_ARG(l) (l).id_str, (l).on_attach, (l).on_update, (l).on_event, (l).on_detach
 
 void be_push_layer(BeEngine *be, BeLayerSpec layer);
+void be_push_overlay(BeEngine *be, BeLayerSpec layer);
 u64 be_layer_id(const char *string);
 BeLayer *be_get_layer_by_name(BeEngine *be, char *id_str);
 void be_detach_layer_by_name(BeEngine *be, char *id_str);

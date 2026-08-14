@@ -21,7 +21,9 @@ typedef struct {
 } BeLayerTransition;
 
 enum e_be_layer_transition_types {
-    BE_LAYER_TRANSITION_TYPE_ATTACH = 50,
+    BE_LAYER_TRANSITION_TYPE_NULL = 0,
+    BE_LAYER_TRANSITION_TYPE_ATTACH_LAYER,
+    BE_LAYER_TRANSITION_TYPE_ATTACH_OVERLAY,
     BE_LAYER_TRANSITION_TYPE_DETACH,
     BE_LAYER_TRANSITION_TYPE_SUSPEND,
     BE_LAYER_TRANSITION_TYPE_ACTIVATE,
@@ -48,8 +50,8 @@ struct s_be_engine {
 
     BeLayers                layers;
     BeLayers                overlays;
+    /* transition queue for both layers and overlays */
     BeLayerTransitionQueue  layer_transitions;
-    BeLayerTransitionQueue  overlay_transitions;
 };
 
 void be_engine_init(BeEngine *be, struct cli_args args);
