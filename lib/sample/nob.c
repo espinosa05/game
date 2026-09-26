@@ -7,8 +7,9 @@
 
 #define M4      "m4"
 
+#define OPTIMIZATION "-Os"
 #define CC      "gcc"
-#define CFLAGS  "-I../../lib/libcore/include", "-I../../lib/libbe/include", "-g", "-Wall", "-O0", "-std=gnu11", "-Wextra", "-Werror", "-c"
+#define CFLAGS  "-I../../lib/libcore/include", "-I../../lib/libbe/include", "-g", "-Wall", OPTIMIZATION, "-std=gnu11", "-Wextra", "-Werror", "-c"
 
 #define LIBNAME "sample"
 

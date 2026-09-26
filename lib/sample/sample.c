@@ -28,15 +28,15 @@ void be_app_entry(BeEngine *be, struct cli_args args)
 
 static struct wm_window_info *window_settings_on_attach(BeEngine *be)
 {
-    struct wm_window_info *info = be_alloc_perm(be, sizeof(*info), 1);
-    info->title     = "title";
-    info->width     = 1200;
-    info->height    = 720;
-    info->x_pos     = X_POS_CENTERED;
-    info->y_pos     = Y_POS_CENTERED;
-    info->force_size = TRUE;
+    struct wm_window_info *w_info = be_alloc_perm(be, sizeof(*w_info), 1);
+    w_info->title       = "Adrian Stinkt";
+    w_info->width       = 1200;
+    w_info->height      = 720;
+    w_info->x_pos       = X_POS_CENTERED;
+    w_info->y_pos       = Y_POS_CENTERED;
+    w_info->force_size = TRUE;
 
-    return info;
+    return w_info;
 }
 
 static void window_settings_on_detach(BeEngine *be, struct wm_window_info *info)

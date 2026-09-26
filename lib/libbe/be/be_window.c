@@ -1,7 +1,8 @@
 #include <be/be_engine.h>
 #include <be/be_layer.h>
 #include <be/be_window.h>
-#include <be/be_render.h>
+#include <be/be_gl_render.h>
+#include <be/be_vk_render.h>
 #include <core/memory_macros.h>
 #include <core/wm_utils.h>
 

@@ -7,19 +7,13 @@
 typedef s64 NttID;
 
 typedef struct {
-    int dummy;
+    MM_ARRAY_MEMBERS(NttID);
 } NttIDs;
 
+typedef void (*NttSystem) (void *);
+
 typedef struct {
-    int dummy;
+    MM_SPARSE_SET_MEMBERS(NttSystem);
 } NttSystems;
-
-typedef struct {
-    int dummy;
-} NttComponents;
-
-typedef struct {
-    int dummy;
-} NttComponentActions;
 
 #endif /* __NTT_NTT_H__ */

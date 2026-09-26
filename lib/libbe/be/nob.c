@@ -21,6 +21,7 @@
 /* IGNORE LIST */
 static const char *ignore_list[] = {
     __FILE__, /* obviously, we disregard this very file */
+    "be_vma.c",
 };
 
 #define MIN_FILENAME_LEN 1
@@ -33,6 +34,20 @@ const char *check_getenv(const char *key)
         abort();
     }
     return value;
+}
+
+const char *get_globl_inc(void)
+{
+    static char inc_dir[PATH_MAX + 1] = {0};
+    static bool once_flag = false;
+
+    if (once_flag == false) {
+        strncpy(inc_dir, "-I", NOB_ARRAY_LEN(inc_dir));
+        strncat(inc_dir, "/usr/include/", NOB_ARRAY_LEN(inc_dir)-strlen(inc_dir));
+    }
+    once_flag = true;
+
+    return inc_dir;
 }
 
 const char *get_libntt_inc(void)

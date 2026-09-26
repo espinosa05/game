@@ -18,6 +18,7 @@ void be_core_on_event(BeEngine *be, BeCore *core)
     UNUSED(be);
     UNUSED(core);
 }
+
 void be_core_on_suspend(BeEngine *be, BeCore *core)
 {
     UNUSED(be);

@@ -1,7 +1,7 @@
 #include <be/be_engine.h>
 #include <be/be_core.h>
 #include <be/be_window.h>
-#include <be/be_render.h>
+#include <be/be_gl_render.h>
 #include <be/be_app_entry.h>
 
 #include <core/cstr.h>
@@ -58,6 +58,7 @@ void be_arena_init(BeArena *arena, usz init_size)
 {
     arena->first = be_arena_chunk_alloc(init_size);
     arena->last = arena->first;
+    INFO_LOG("created arena of size "USZ_FMT" @ "PTR_FMT, init_size, arena->first);
 }
 
 void *be_arena_alloc(BeArena *arena, usz chunk, usz count)
@@ -76,7 +77,6 @@ void *be_arena_alloc(BeArena *arena, usz chunk, usz count)
 #endif
 
     void *buff = be_arena_chunk_get(last);
-    INFO_LOG("be_arena allocation: "PTR_FMT, buff);
     last->used += alloc_size;
     return buff;
 }
@@ -141,6 +141,7 @@ BeLayer *be_get_layer_by_name(BeEngine *be, char *id_str)
         }
     }
 
+    ASSERT(target, "no layer named "STR_FMT" found!", id_str);
     return target;
 }
 
@@ -209,12 +210,11 @@ void be_engine_init(BeEngine *be, struct cli_args args)
     be_app_entry(be, args);
 
     be_push_overlay(be, BE_WINDOW_LAYER_SPEC);
-    be_push_overlay(be, BE_RENDER_LAYER_SPEC);
+    be_push_overlay(be, BE_GL_RENDER_LAYER_SPEC);
 }
 
 void be_engine_run(BeEngine *be)
 {
-
     while (!should_close(be)) {
         frame_time_start(be);
 
@@ -250,8 +250,7 @@ static BeArenaChunk *be_arena_chunk_alloc(usz size)
     BeArenaChunk *chunk = NULL;
     const usz alloc_size = sizeof(*chunk) + size;
     chunk = m_alloc(BYTE_SIZE, alloc_size);
-    INFO_LOG("chunk alloc: "PTR_FMT, chunk);
-    void *buffer = U8_PTR(chunk) + sizeof(*chunk);
+    void *buffer = &chunk[1];
     be_arena_chunk_init_ext(chunk, buffer, size);
 
     return chunk;
@@ -298,8 +297,6 @@ static void add_layer(BeEngine *be, BeLayerSpec spec)
     layer.on_update     = spec.on_update;
     layer.on_event      = spec.on_event;
     mm_array_append(&be->layers, layer);
-
-    INFO_LOG("{ context: "PTR_FMT" } "BE_LAYER_SPEC_FMT, layer.context, BE_LAYER_SPEC_FMT_ARG(spec));
 }
 
 static void update_layers(BeEngine *be)
@@ -325,7 +322,6 @@ static void transition_layers(BeEngine *be)
         BeLayerTransitionQueue *transitions = &be->layer_transitions;
         usz length = mm_queue_length(transitions);
         for (usz i = 0; i < length; ++i) {
-            INFO_LOG("dequeueing layer "USZ_FMT" of "USZ_FMT, i, length);
             BeLayerTransition transition = {0};
             mm_queue_dequeue(transitions, &transition);
             transition_layer(be, transition);
@@ -340,11 +336,11 @@ static void transition_layer(BeEngine *be, BeLayerTransition transition)
     switch (transition.type) {
     case BE_LAYER_TRANSITION_TYPE_ATTACH_OVERLAY:
         INFO_LOG("BE_LAYER_TRANSITION_TYPE_ATTACH_OVERLAY");
-        add_layer(be, transition.spec);
+        add_overlay(be, transition.spec);
         break;
     case BE_LAYER_TRANSITION_TYPE_ATTACH_LAYER:
         INFO_LOG("BE_LAYER_TRANSITION_TYPE_ATTACH_LAYER");
-        add_overlay(be, transition.spec);
+        add_layer(be, transition.spec);
         break;
     case BE_LAYER_TRANSITION_TYPE_DETACH:
         INFO_LOG("BE_LAYER_TRANSITION_TYPE_DETACH");
@@ -387,8 +383,6 @@ static void add_overlay(BeEngine *be, BeLayerSpec spec)
     layer.on_update     = spec.on_update;
     layer.on_event      = spec.on_event;
     mm_array_append(&be->overlays, layer);
-
-    INFO_LOG("{ context: "PTR_FMT" } "BE_LAYER_SPEC_FMT, layer.context, BE_LAYER_SPEC_FMT_ARG(spec));
 }
 
 static void be_transitions_init(BeLayerTransitionQueue *transitions)
@@ -398,6 +392,7 @@ static void be_transitions_init(BeLayerTransitionQueue *transitions)
 
 static void cleanup_layers(BeEngine *be)
 {
+    INFO_LOG("cleaning up layers("USZ_FMT")", be->layers.count);
     BeLayers layers = be->layers;
     for (EACH_BE_LAYER(layer, layers)) {
         layer->on_detach(be, layer->context);
